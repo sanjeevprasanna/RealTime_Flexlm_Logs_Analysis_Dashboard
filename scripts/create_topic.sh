@@ -6,7 +6,7 @@ if ! docker ps | grep -q kafka; then
   exit 1
 fi
 
-TOPICS=("flexlm.logs.synopsys" "flexlm.logs.cadence" "flexlm.logs.altair")
+TOPICS=("flexlm.logs.synopsys" "flexlm.logs.cadence" "flexlm.logs.altair" "lmgrd")
 
 for topic in "${TOPICS[@]}"; do
   echo "Creating topic: $topic"
