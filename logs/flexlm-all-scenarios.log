@@ -131,5 +131,53 @@
 12:46:10 (synopsys) OUT: "alpaca_shell" v2023.06  user john@design01  (handle 10021) 1/20
 12:46:40 (synopsys) IN:  "sanj" v2023.06  user john@design01  (handle 10021)
 
+12:46:10 (synopsys) OUT: "alpaca_shell" v2023.06  user john@design01  (handle 10021) 1/20
+12:46:40 (synopsys) IN:  "sanj" v2023.06  user john@design01  (handle 10021)
+12:46:10 (synopsys) OUT: "alpaca_shell" v2023.06  user john@design01  (handle 10021) 1/20
+12:46:40 (synopsys) IN:  "sanj" v2023.06  user john@design01  (handle 10021)
+12:46:10 (synopsys) OUT: "alpaca_shell" v2023.06  user john@design01  (handle 10021) 1/20
+12:46:40 (synopsys) IN:  "sanj" v2023.06  user john@design01  (handle 10021)
+12:46:10 (synopsys) OUT: "alpaca_shell" v2023.06  user john@design01  (handle 10021) 1/20
+12:46:40 (synopsys) IN:  "sanj" v2023.06  user john@design01  (handle 10021)
+03:58:00 (altair) OUT: "optistruct" v2022.1  user alex@cad02  (handle 36774) 9/19
+20:06:53 (cadence) OUT: "virtuoso" v2023.06  user john@design01  (handle 67238)
+12:00:03 (altair) OUT: "hypermesh" v2023.06  user arun@eda03  (handle 40682) 10/10
+15:43:46 (altair) OUT: "flotherm" v2022.1  user alice@floorplan01  (handle 19784)
+19:43:16 (altair) RESERVED: "flotherm" v2022.1  user alex@cad02 (RESERVED for GROUP CAE) (handle 94897)
+01:14:02 (altair) OUT: "flotherm" v2023.06  user dave@cae01  (handle 44513) 6/5
+16:52:47 (cadence) RESERVED: "virtuoso" v2024.02  user alex@cad02 (RESERVED for GROUP CAE) (handle 39506)
+04:22:31 (altair) OUT: "flotherm" v23.10  user john@design01  (handle 93679)
+13:48:59 (synopsys) RESERVED: "dc_shell" v2023.06  user alex@cad02 (RESERVED for GROUP CAE) (handle 59109)
+13:29:09 (synopsys) IN: "primetime" v2022.1  user alex@cad02  (handle 51643) 9/3
 
 
+18:05:34 (cadence) RESERVED: "virtuoso" v2024.02  user dave@cae01 (RESERVED for GROUP CAE) (handle 53274) 8/17
+18:05:34 (cadence) RESERVED: "tempus" v23.10  user alex@cad02 (RESERVED for GROUP CAE) (handle 31983)
+18:05:34 (altair) OUT: "flotherm" v23.10  user li@chip05  (handle 89030)
+18:05:34 (synopsys) OUT: "primetime" v2022.1  user alex@cad02  (handle 30755)
+18:05:34 (altair) OUT: "optistruct" v23.10  user alex@cad02  (handle 30060) 9/29
+18:05:34 (synopsys) RESERVED: "primetime" v2023.06  user john@design01 (RESERVED for GROUP CAE) (handle 67456)
+18:05:34 (synopsys) RESERVED: "vcs" v2022.1  user alex@cad02 (RESERVED for GROUP CAE) (handle 43074) 5/16
+18:05:34 (altair) OUT: "hypermesh" v2023.06  user dave@cae01  (handle 27723)
+18:05:34 (altair) IN: "flux" v2022.1  user dave@cae01  (handle 52969)
+18:05:34 (cadence) RESERVED: "innovus" v2024.02  user dave@cae01 (RESERVED for GROUP CAE) (handle 30553) 5/18
+18:06:15 (altair) RESERVED: "hypermesh" v23.10  user alice@floorplan01 (RESERVED for GROUP CAE) (handle 65254)
+18:06:15 (cadence) IN: "virtuoso" v23.10  user dave@cae01  (handle 46693) 7/22
+18:06:15 (synopsys) IN: "vcs" v2022.1  user alex@cad02  (handle 48651) 2/27
+18:06:15 (cadence) OUT: "innovus" v2022.1  user dave@cae01  (handle 75137) 4/8
+18:06:15 (altair) IN: "hypermesh" v23.10  user john@design01  (handle 37912) 2/18
+18:06:15 (altair) OUT: "flux" v2022.1  user arun@eda03  (handle 13914) 6/17
+18:06:15 (synopsys) IN: "vcs" v2022.1  user dave@cae01  (handle 11506)
+18:06:15 (synopsys) IN: "design_compiler" v2024.02  user li@chip05  (handle 58756)
+18:06:15 (altair) OUT: "hypermesh" v2023.06  user dave@cae01  (handle 99348)
+18:06:15 (cadence) RESERVED: "genus" v2024.02  user arun@eda03 (RESERVED for GROUP CAE) (handle 37074) 9/23
+18:07:56 (synopsys) OUT: "design_compiler" v23.10  user alice@floorplan01  (handle 31261) 3/12
+18:07:56 (synopsys) IN: "primetime" v2024.02  user alex@cad02  (handle 57435)
+18:07:56 (altair) OUT: "hypermesh" v2024.02  user alex@cad02  (handle 92243) 8/25
+18:07:56 (cadence) RESERVED: "virtuoso" v2024.02  user dave@cae01 (RESERVED for GROUP CAE) (handle 44360)
+18:07:56 (cadence) OUT: "tempus" v2022.1  user john@design01  (handle 13501)
+18:07:56 (synopsys) IN: "dc_shell" v2024.02  user dave@cae01  (handle 84207) 5/18
+18:07:56 (altair) RESERVED: "flotherm" v2024.02  user alex@cad02 (RESERVED for GROUP CAE) (handle 20628)
+18:07:56 (altair) IN: "optistruct" v2024.02  user john@design01  (handle 12861) 1/29
+18:07:56 (cadence) RESERVED: "tempus" v2022.1  user arun@eda03 (RESERVED for GROUP CAE) (handle 40762) 5/29
+18:07:56 (altair) IN: "flux" v2023.06  user alex@cad02  (handle 45457)

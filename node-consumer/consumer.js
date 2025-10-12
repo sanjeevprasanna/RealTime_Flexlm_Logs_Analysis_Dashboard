@@ -1,79 +1,87 @@
-// consumer.js
-import { Kafka } from 'kafkajs';
-import { createClient } from '@clickhouse/client';
+// Minimal Kafka Consumer for FlexLM Logs
+// Consumes messages from all FlexLM topics and prints to console
 
+const { Kafka } = require("kafkajs");
+
+// Kafka configuration
 const kafka = new Kafka({
-  clientId: 'flexlm-consumer',
-  brokers: ['localhost:9092']
+  clientId: "flexlm-consumer",
+  brokers: ["localhost:9092"],
 });
 
-const consumer = kafka.consumer({ groupId: 'flexlm-group' });
-
-const clickhouse = createClient({
-  url: 'http://localhost:8123',
-  username: 'default',
-  password: ''
+const consumer = kafka.consumer({
+  groupId: "flexlm-consumer-group",
 });
 
-async function ensureTable() {
-  await clickhouse.exec({
-    query: `
-      CREATE TABLE IF NOT EXISTS flexlm_events (
-        ts DateTime DEFAULT now(),
-        vendor String,
-        event String,
-        feature String,
-        version String,
-        user String,
-        host String,
-        details String,
-        raw_log String
-      ) ENGINE = MergeTree()
-      ORDER BY (ts)
-    `
-  });
-  // Allow skipping unknown JSON fields on insert
-  await clickhouse.exec({ query: "SET input_format_skip_unknown_fields = 1" });
-}
+// Topics to subscribe to
+const topics = [
+  "flexlm.logs.synopsys",
+  "flexlm.logs.cadence",
+  "flexlm.logs.altair",
+  "flexlm.logs.lmgrd",
+];
 
-async function run() {
-  await consumer.connect();
-  await ensureTable();
-  await consumer.subscribe({ topic: 'flexlm_logs', fromBeginning: true });
+// Color codes for terminal output
+const colors = {
+  synopsys: "\x1b[36m", // Cyan
+  cadence: "\x1b[33m", // Yellow
+  altair: "\x1b[35m", // Magenta
+  lmgrd: "\x1b[32m", // Green
+  reset: "\x1b[0m",
+};
 
-  await consumer.run({
-    eachMessage: async ({ message }) => {
-      const raw = message.value.toString();
-      let obj;
-      try {
-        obj = JSON.parse(raw);
-      } catch (err) {
-        obj = { raw_log: raw };
-      }
+// Main consumer logic
+const run = async () => {
+  try {
+    console.log("🔌 Connecting to Kafka...");
+    await consumer.connect();
+    console.log("✅ Connected to Kafka\n");
 
-      const row = {
-        ts: obj.date ? new Date(obj.date * 1000).toISOString().slice(0, 19).replace('T', ' ') : new Date().toISOString().slice(0, 19).replace('T', ' '),
-        vendor: obj.vendor || '',
-        event: obj.event || '',
-        feature: obj.feature || '',
-        version: obj.version || '',
-        user: obj.user || '',
-        host: obj.host || '',
-        details: obj.details || '',
-        raw_log: obj.log || obj.raw_log || raw
-      };
-
-      await clickhouse.insert({
-        table: 'flexlm_events',
-        values: [row],
-        format: 'JSONEachRow'
-      });
+    for (const topic of topics) {
+      await consumer.subscribe({ topic, fromBeginning: true });
+      console.log(`📡 Subscribed to: ${topic}`);
     }
-  });
-}
 
-run().catch(err => {
-  console.error('Fatal consumer error:', err);
-  process.exit(1);
-});
+    console.log("\n🎧 Listening for messages... (Press Ctrl+C to stop)\n");
+    console.log("─".repeat(80));
 
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        try {
+          const value = JSON.parse(message.value.toString());
+          const daemon = topic.split(".").pop();
+          const color = colors[daemon] || colors.reset;
+
+          const timestamp = value["@timestamp"]
+            ? new Date(value["@timestamp"] * 1000).toISOString()
+            : "unknown_time";
+
+          console.log(
+            `${color}[${timestamp}] ${daemon.toUpperCase()}${colors.reset} | ` +
+            `${value.operation || "N/A"} | ` +
+            `${value.feature || "N/A"} | ` +
+            `${value.user || "N/A"}@${value.server || "N/A"}`,
+          );
+        } catch (err) {
+          console.error("Error parsing message:", err.message);
+        }
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error:", error.message);
+    process.exit(1);
+  }
+};
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log("\n🛑 Shutting down consumer...");
+  await consumer.disconnect();
+  console.log("✅ Disconnected from Kafka");
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
+run().catch(console.error);

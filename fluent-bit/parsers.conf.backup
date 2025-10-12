@@ -1,7 +1,0 @@
-[PARSER]
-    Name         flexlm_parser
-    Format       regex
-    Regex        ^(?<timestamp>\d{2}:\d{2}:\d{2}) \((?<daemon>[^\)]+)\)\s+(?<operation>\w+):\s+"(?<feature>[^"]+)"\s+v(?<version>[^\s]+)\s+user\s+(?<user>[^@]+)@(?<server>[^\s]+).*(?:(?<licenses_used>\d+)\/(?<licenses_total>\d+))?.*
-    Time_Key     timestamp
-    Time_Format  %H:%M:%S
-
