@@ -1,4 +1,4 @@
-// Script to write random FlexLM-style logs directly into logs/flexlm-all-scenarios.log
+// Script to continuously write 250 random FlexLM-style logs per second
 
 const fs = require("fs");
 const path = require("path");
@@ -24,12 +24,12 @@ const users = [
 ];
 const types = ["IN", "OUT", "RESERVED"];
 
-// Utility to generate random item
+// Utility: random array item
 function getRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Live timestamp generator (HH:MM:SS)
+// Utility: live timestamp (HH:MM:SS)
 function liveTime() {
   const now = new Date();
   const h = String(now.getHours()).padStart(2, "0");
@@ -38,7 +38,7 @@ function liveTime() {
   return `${h}:${m}:${s}`;
 }
 
-// Generate one random log line
+// Generate a single random log line
 function generateLogLine() {
   const vendor = getRandom(vendors);
   const program = getRandom(programs[vendor]);
@@ -52,15 +52,18 @@ function generateLogLine() {
       : "";
   const reserved = type === "RESERVED" ? "(RESERVED for GROUP CAE)" : "";
 
-  return `${liveTime()} (${vendor}) ${type}: "${program}" ${version}  user ${user} ${reserved} (handle ${handle}) ${count}`.trim();
+  return `${liveTime()} (${vendor}) ${type}: "${program}" ${version} user ${user} ${reserved} (handle ${handle}) ${count}`.trim();
 }
 
-// Write 10 logs
-function writeLogs() {
-  const logs = Array.from({ length: 10 }, generateLogLine).join("\n") + "\n";
+// Function to write 250 log lines
+function writeBatch() {
+  const logs = Array.from({ length: 250 }, generateLogLine).join("\n") + "\n";
   fs.appendFileSync(logFilePath, logs, "utf8");
-  console.log(`✅ 10 random log lines written to ${logFilePath}`);
+  console.log(` Wrote 250 log lines at ${liveTime()}`);
 }
 
-// Run it
-writeLogs();
+// Run continuously every 1 second
+console.log(
+  "Writing 250 FlexLM-style logs every second... Press Ctrl+C to stop.",
+);
+setInterval(writeBatch, 1000);

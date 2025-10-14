@@ -1,18 +1,27 @@
 {
-  "name": "consumer",
+  "name": "flexlm-kafka-consumer",
   "version": "1.0.0",
-  "description": "",
-  "main": "consumer.js",
+  "description": "Kafka consumers for FlexLM logs (with and without ClickHouse integration)",
+  "main": "consumer-clickhouse.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node consumer-clickhouse.js",
+    "dev": "node consumer.js",
+    "test-producer": "node producer-test-kafka.js",
+    "write-logs": "node producer-test-echo-logs.js",
+    "start:instance1": "CONSUMER_INSTANCE=1 node consumer-clickhouse.js",
+    "start:instance2": "CONSUMER_INSTANCE=2 node consumer-clickhouse.js"
   },
-  "keywords": [],
+  "keywords": [
+    "kafka",
+    "flexlm",
+    "clickhouse",
+    "consumer",
+    "realtime"
+  ],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "license": "MIT",
   "dependencies": {
-    "fs": "^0.0.1-security",
-    "kafka-node": "^5.0.0",
+    "@clickhouse/client": "^0.2.10",
     "kafkajs": "^2.2.4"
   }
 }

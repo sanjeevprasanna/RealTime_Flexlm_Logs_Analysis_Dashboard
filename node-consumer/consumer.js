@@ -1,19 +1,20 @@
-// Minimal Kafka Consumer for FlexLM Logs
-// Consumes messages from all FlexLM topics and prints to console
+// Kafka Consumer for FlexLM Logs
+// Subscribes to multiple FlexLM topics and prints messages to the console
 
 const { Kafka } = require("kafkajs");
 
-// Kafka configuration
+// Kafka client configuration
 const kafka = new Kafka({
   clientId: "flexlm-consumer",
   brokers: ["localhost:9092"],
 });
 
+// Create a Kafka consumer
 const consumer = kafka.consumer({
   groupId: "flexlm-consumer-group",
 });
 
-// Topics to subscribe to
+// List of topics to subscribe to
 const topics = [
   "flexlm.logs.synopsys",
   "flexlm.logs.cadence",
@@ -21,30 +22,32 @@ const topics = [
   "flexlm.logs.lmgrd",
 ];
 
-// Color codes for terminal output
+// Terminal colors for different topics
 const colors = {
   synopsys: "\x1b[36m", // Cyan
-  cadence: "\x1b[33m", // Yellow
-  altair: "\x1b[35m", // Magenta
-  lmgrd: "\x1b[32m", // Green
-  reset: "\x1b[0m",
+  cadence: "\x1b[33m",  // Yellow
+  altair: "\x1b[35m",    // Magenta
+  lmgrd: "\x1b[32m",     // Green
+  reset: "\x1b[0m",      // Reset color
 };
 
-// Main consumer logic
+// Main consumer function
 const run = async () => {
   try {
-    console.log("🔌 Connecting to Kafka...");
+    console.log("Connecting to Kafka...");
     await consumer.connect();
-    console.log("✅ Connected to Kafka\n");
+    console.log("Connected to Kafka\n");
 
+    // Subscribe to all topics
     for (const topic of topics) {
       await consumer.subscribe({ topic, fromBeginning: true });
-      console.log(`📡 Subscribed to: ${topic}`);
+      console.log(`Subscribed to: ${topic}`);
     }
 
-    console.log("\n🎧 Listening for messages... (Press Ctrl+C to stop)\n");
+    console.log("\nListening for messages...\n");
     console.log("─".repeat(80));
 
+    // Consume messages from Kafka
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         try {
@@ -60,7 +63,7 @@ const run = async () => {
             `${color}[${timestamp}] ${daemon.toUpperCase()}${colors.reset} | ` +
             `${value.operation || "N/A"} | ` +
             `${value.feature || "N/A"} | ` +
-            `${value.user || "N/A"}@${value.server || "N/A"}`,
+            `${value.user || "N/A"}@${value.server || "N/A"}`
           );
         } catch (err) {
           console.error("Error parsing message:", err.message);
@@ -68,20 +71,23 @@ const run = async () => {
       },
     });
   } catch (error) {
-    console.error("❌ Error:", error.message);
+    console.error("Error:", error.message);
     process.exit(1);
   }
 };
 
-// Graceful shutdown
+// Graceful shutdown to disconnect consumer
 const shutdown = async () => {
-  console.log("\n🛑 Shutting down consumer...");
+  console.log("\nShutting down consumer...");
   await consumer.disconnect();
-  console.log("✅ Disconnected from Kafka");
+  console.log("Consumer disconnected from Kafka");
   process.exit(0);
 };
 
+// Handle termination signals
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
+// Start the consumer
 run().catch(console.error);
+

@@ -1,3 +1,4 @@
+version: "3.8"
 services:
   kafka:
     image: apache/kafka:3.9.0
@@ -25,5 +26,38 @@ services:
       - kafka-data:/var/lib/kafka
     restart: unless-stopped
 
+  # ClickHouse Service
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: clickhouse
+    ports:
+      - "8123:8123" # HTTP interface
+      - "9000:9000" # Native TCP interface
+    environment:
+      CLICKHOUSE_DB: flexlm
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin123
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-init:/docker-entrypoint-initdb.d
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped
+    networks:
+      - flexlm-network
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   kafka-data:
+  clickhouse-data:
+
+networks:
+  flexlm-network:
+    driver: bridge
