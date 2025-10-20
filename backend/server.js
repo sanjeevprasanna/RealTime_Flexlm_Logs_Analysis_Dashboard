@@ -1,18 +1,54 @@
+require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { createClient } = require("@clickhouse/client");
+const {
+  getDailyActiveCountsLast30Days,
+  getActiveVendors,
+  getSummaryHomePage,
+} = require("./services/Flexlogsservices.js");
 
 const app = express();
-const port = 3000;
+app.use(cors({ origin: "http://localhost:5173" }));
+const port = process.env.PORT;
+
+//Routes
 
 app.get("/", (req, res) => {
   res.send("Hello Flex!!!");
 });
 
+app.get("/services/getDailyActiveCountsLast30Days", async (req, res) => {
+  const data = await getDailyActiveCountsLast30Days();
+  res.json(data);
+});
+
+app.get("/services/getActiveVendors", async (req, res) => {
+  try {
+    const data = await getActiveVendors();
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching active vendors");
+  }
+});
+
+app.get("/services/getSummaryHomePage", async (req, res) => {
+  try {
+    const data = await getSummaryHomePage();
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching Home Page Summary");
+  }
+});
+
+//db
 const client = createClient({
-  host: "http://localhost:8123",
-  database: "flexlm",
-  username: "admin",
-  password: "admin123",
+  host: process.env.CLICKHOUSE_HOST,
+  database: process.env.CLICKHOUSE_DB,
+  username: process.env.CLICKHOUSE_USER,
+  password: process.env.CLICKHOUSE_PASSWORD,
 });
 
 app.get("/db", async (req, res) => {
