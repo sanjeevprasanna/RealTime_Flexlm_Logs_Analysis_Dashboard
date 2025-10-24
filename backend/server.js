@@ -6,7 +6,15 @@ const {
   getDailyActiveCountsLast30Days,
   getActiveVendors,
   getSummaryHomePage,
+  getSubsPageData,
+  getDenialPageData,
+  getLivePageData,
+  getWaitPageData,
 } = require("./services/Flexlogsservices.js");
+const { error } = require("console");
+const {
+  collapseTextChangeRangesAcrossMultipleVersions,
+} = require("typescript");
 
 const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
@@ -40,6 +48,46 @@ app.get("/services/getSummaryHomePage", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching Home Page Summary");
+  }
+});
+
+//SubsPage
+app.get("/services/getSubsPageData", async (req, res) => {
+  try {
+    const data = await getSubsPageData();
+    res.json(data);
+  } catch (er) {
+    console.error("Error gettign SubsPage data", er);
+  }
+});
+
+//LivePAge
+app.get("/services/getLivePageData", async (req, res) => {
+  try {
+    const data = await getLivePageData();
+    res.json(data);
+  } catch (er) {
+    console.error("Error fetching livve page data", er);
+  }
+});
+//WaitPage
+
+app.get("/services/getWaitPageData", async (req, res) => {
+  try {
+    const data = await getWaitPageData();
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching Wait Page Data", err);
+  }
+});
+
+//DenialsPage
+app.get("/services/getDenialPageData", async (req, res) => {
+  try {
+    const data = getDenialPageData();
+    res.json(data);
+  } catch (er) {
+    console.error("Error fetching denial page data", er);
   }
 });
 

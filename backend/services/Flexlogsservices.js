@@ -121,8 +121,325 @@ async function getSummaryHomePage() {
   };
 }
 
+async function getSubsPageData() {
+  const featuresQuery = `
+    SELECT 
+      feature,
+      daemon,
+      argMax(licenses_total, event_time) AS total,
+      argMax(licenses_used, event_time) AS used,
+      groupArray(DISTINCT user) AS users
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation = 'IN'
+    GROUP BY feature, daemon
+  `;
+
+  const featuresResult = await client.query({
+    query: featuresQuery,
+    format: "JSONEachRow",
+  });
+  const featuresRaw = await featuresResult.json();
+
+  const hourlyQuery = `
+    SELECT 
+      toHour(event_time) AS hour,
+      count(*) AS count
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+    GROUP BY hour
+    ORDER BY hour
+  `;
+  const hourlyResult = await client.query({
+    query: hourlyQuery,
+    format: "JSONEachRow",
+  });
+  const hourlyRaw = await hourlyResult.json();
+
+  const activityQuery = `
+    SELECT 
+      user,
+      feature,
+      min(event_time) AS access_time,
+      dateDiff('second', min(event_time), max(event_time)) AS duration_seconds
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation = 'IN'
+    GROUP BY user, feature
+    ORDER BY access_time DESC
+    LIMIT 20
+  `;
+  const activityResult = await client.query({
+    query: activityQuery,
+    format: "JSONEachRow",
+  });
+  const activityRaw = await activityResult.json();
+
+  const features = featuresRaw.map((f) => ({
+    feature: f.feature,
+    daemon: f.daemon,
+    total: f.total || 0,
+    inUse: f.used || 0,
+    users: f.users || [],
+  }));
+
+  const hourlyData = Array.from({ length: 24 }, (_, i) => {
+    const hourData = hourlyRaw.find((h) => h.hour === i);
+    return {
+      hour: `${String(i).padStart(2, "0")}:00`,
+      count: hourData ? hourData.count : 0,
+    };
+  });
+
+  const userActivity = activityRaw.map((a) => {
+    const durationSeconds = a.duration_seconds || 0;
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+    return {
+      user: a.user,
+      feature: a.feature,
+      accessTime: new Date(a.access_time).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      duration,
+    };
+  });
+
+  console.log("Features count:", features.length);
+  console.log("Hourly count:", hourlyData.length);
+  console.log("Activity count:", userActivity.length);
+
+  return {
+    features,
+    hourlyData,
+    userActivity,
+  };
+}
+
+const getDenialPageData = async () => {
+  const hourlyQuery = `
+    SELECT 
+      formatDateTime(event_time, '%H:00') AS hour,
+      daemon AS vendor,
+      count() AS count
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today() AND operation = 'DENIED'
+    GROUP BY hour, vendor
+    ORDER BY hour ASC
+  `;
+
+  const hourlyResult = await client.query({
+    query: hourlyQuery,
+    format: "JSONEachRow",
+  });
+
+  const hourlyData = await hourlyResult.json();
+
+  const hours = Array.from({ length: 24 }, (_, i) => {
+    const label = `${String(i).padStart(2, "0")}:00`;
+    const perVendor = hourlyData.filter((row) => row.hour === label);
+    const vendorCounts = Object.fromEntries(
+      perVendor.map((r) => [r.vendor.toLowerCase(), r.count]),
+    );
+    return {
+      hour: label,
+      cadence: vendorCounts.cadence || 0,
+      altair: vendorCounts.altair || 0,
+      synopsys: vendorCounts.synopsys || 0,
+    };
+  });
+
+  const tableQuery = `
+    SELECT 
+      feature,
+      daemon AS vendor,
+      count() AS denied
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today() AND operation = 'DENIED'
+    GROUP BY feature, vendor
+    ORDER BY denied DESC
+    LIMIT 50
+  `;
+
+  const tableResult = await client.query({
+    query: tableQuery,
+    format: "JSONEachRow",
+  });
+
+  const tableData = await tableResult.json();
+
+  return {
+    hourlyData: hours,
+    tableData,
+  };
+};
+
+//Live Page
+async function getLivePageData() {
+  // Get hourly usage data for today (24 hours) with vendor counts
+  const hourlyQuery = `
+    SELECT 
+      toHour(event_time) AS hour,
+      daemon AS vendor,
+      count(DISTINCT feature) AS feature_count
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation = 'IN'
+    GROUP BY hour, vendor
+    ORDER BY hour ASC
+  `;
+
+  const hourlyResult = await client.query({
+    query: hourlyQuery,
+    format: "JSONEachRow",
+  });
+
+  const hourlyData = await hourlyResult.json();
+
+  // Create 24-hour array with vendor-specific feature counts
+  const hours = Array.from({ length: 24 }, (_, i) => {
+    const perVendor = hourlyData.filter((row) => row.hour === i);
+
+    const vendorCounts = {};
+    const vendorsActive = [];
+
+    perVendor.forEach((row) => {
+      const vendorName = row.vendor.toLowerCase();
+      vendorCounts[vendorName] = row.feature_count;
+      vendorsActive.push(vendorName);
+    });
+
+    return {
+      time: `${String(i).padStart(2, "0")}:00`,
+      vendorsActive: vendorsActive,
+      vendorCounts: vendorCounts,
+    };
+  });
+
+  // Get current feature usage with active counts
+  const featuresQuery = `
+    SELECT 
+      feature,
+      daemon AS vendor,
+      argMax(licenses_total, event_time) AS total,
+      argMax(licenses_used, event_time) AS active,
+      groupArray(DISTINCT user) AS users
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation = 'IN'
+      AND licenses_total IS NOT NULL
+    GROUP BY feature, daemon
+    ORDER BY active DESC
+  `;
+
+  const featuresResult = await client.query({
+    query: featuresQuery,
+    format: "JSONEachRow",
+  });
+
+  const featuresRaw = await featuresResult.json();
+
+  const features = featuresRaw.map((f) => ({
+    feature: f.feature,
+    vendor: f.vendor.toLowerCase(),
+    active: f.active || 0,
+    total: f.total || 0,
+    available: (f.total || 0) - (f.active || 0),
+    users: f.users || [],
+  }));
+
+  return {
+    hourlyData: hours,
+    features,
+  };
+}
+
+async function getWaitPageData() {
+  // Get hourly wait/denial counts for today (24 hours)
+  const hourlyWaitQuery = `
+    SELECT
+      toHour(event_time) AS hour,
+      count() AS waitCount
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation = 'DENIED'
+    GROUP BY hour
+    ORDER BY hour ASC
+  `;
+
+  const hourlyResult = await client.query({
+    query: hourlyWaitQuery,
+    format: "JSONEachRow",
+  });
+
+  const hourlyRaw = await hourlyResult.json();
+
+  // Create 24-hour array
+  const hourlyData = Array.from({ length: 24 }, (_, i) => {
+    const hourData = hourlyRaw.find((h) => h.hour === i);
+    return {
+      hour: `${String(i).padStart(2, "0")}:00`,
+      waitCount: hourData ? hourData.waitCount : 0,
+    };
+  });
+
+  // Get current users experiencing denials (recent denials as "waiting")
+  const currentWaitQuery = `
+    SELECT
+      feature,
+      user,
+      daemon AS vendor,
+      min(event_time) AS first_denial,
+      max(event_time) AS last_denial,
+      count() AS denial_count
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation = 'DENIED'
+      AND event_time >= now() - INTERVAL 1 HOUR
+    GROUP BY feature, user, daemon
+    ORDER BY last_denial DESC
+    LIMIT 50
+  `;
+
+  const currentWaitResult = await client.query({
+    query: currentWaitQuery,
+    format: "JSONEachRow",
+  });
+
+  const currentWaitRaw = await currentWaitResult.json();
+
+  const waitQueue = currentWaitRaw.map((w) => {
+    const durationMs = new Date(w.last_denial) - new Date(w.first_denial);
+    const totalSeconds = Math.floor(durationMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const duration = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+    return {
+      feature: w.feature,
+      user: w.user,
+      vendor: w.vendor.toLowerCase(),
+      duration,
+      status: "waiting",
+      denialCount: w.denial_count,
+    };
+  });
+
+  return {
+    hourlyData,
+    waitQueue,
+  };
+}
+
 module.exports = {
   getDailyActiveCountsLast30Days,
   getActiveVendors,
   getSummaryHomePage,
+  getSubsPageData,
+  getDenialPageData,
+  getWaitPageData,
+  getLivePageData,
 };

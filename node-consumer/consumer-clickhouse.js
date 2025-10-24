@@ -4,10 +4,7 @@
 const { Kafka } = require("kafkajs");
 const { createClient } = require("@clickhouse/client");
 
-// ============================================================================
 // Configuration
-// ============================================================================
-
 const CONFIG = {
   kafka: {
     clientId: "flexlm-consumer",
@@ -33,9 +30,7 @@ const CONFIG = {
   },
 };
 
-// ============================================================================
 // Initialize Clients
-// ============================================================================
 
 const kafka = new Kafka({
   clientId: CONFIG.kafka.clientId,
@@ -55,9 +50,7 @@ const clickhouse = createClient({
   password: CONFIG.clickhouse.password,
 });
 
-// ============================================================================
 // Batch Management
-// ============================================================================
 
 let batch = [];
 let batchTimer = null;
@@ -100,15 +93,13 @@ function transformMessage(kafkaMessage, topic, partition, offset) {
       kafka_offset: offset,
     };
   } catch (error) {
-    console.error("❌ Error transforming message:", error.message);
+    console.error("Error transforming message:", error.message);
     metrics.errors++;
     return null;
   }
 }
 
-/**
- * Insert batch into ClickHouse
- */
+// Insert batch into ClickHouse
 async function insertBatch() {
   if (batch.length === 0) return;
 
@@ -134,11 +125,11 @@ async function insertBatch() {
     metrics.lastInsertTime = new Date();
 
     console.log(
-      `✅ Inserted batch: ${batchToInsert.length} rows in ${duration}ms ` +
+      ` Inserted batch: ${batchToInsert.length} rows in ${duration}ms ` +
       `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
     );
   } catch (error) {
-    console.error("❌ Error inserting batch to ClickHouse:", error.message);
+    console.error(" Error inserting batch to ClickHouse:", error.message);
     metrics.errors++;
 
     // Put failed messages back in batch for retry
@@ -146,9 +137,6 @@ async function insertBatch() {
   }
 }
 
-/**
- * Add message to batch and trigger insert if needed
- */
 async function addToBatch(row) {
   if (!row) return;
 
@@ -165,27 +153,25 @@ async function addToBatch(row) {
   }
 }
 
-// ============================================================================
 // Main Consumer Logic
-// ============================================================================
 
 async function run() {
   try {
-    console.log("🔌 Connecting to Kafka...");
+    console.log(" Connecting to Kafka...");
     await consumer.connect();
-    console.log("✅ Connected to Kafka");
+    console.log("Connected to Kafka");
 
-    console.log("🔌 Connecting to ClickHouse...");
+    console.log(" Connecting to ClickHouse...");
     await clickhouse.ping();
-    console.log("✅ Connected to ClickHouse\n");
+    console.log(" Connected to ClickHouse\n");
 
     // Subscribe to all topics
     for (const topic of CONFIG.topics) {
       await consumer.subscribe({ topic, fromBeginning: false });
-      console.log(`📡 Subscribed to: ${topic}`);
+      console.log(` Subscribed to: ${topic}`);
     }
 
-    console.log("\n🎧 Consuming messages...");
+    console.log("\n Consuming messages...");
     console.log(
       `   Batch Config: ${CONFIG.batch.maxSize} messages or ${CONFIG.batch.maxWaitMs}ms\n`,
     );
@@ -199,21 +185,19 @@ async function run() {
       },
     });
   } catch (error) {
-    console.error("❌ Fatal error:", error);
+    console.error("Fatal error:", error);
     process.exit(1);
   }
 }
 
-// ============================================================================
 // Graceful Shutdown
-// ============================================================================
 
 async function shutdown() {
-  console.log("\n\n🛑 Shutting down...");
+  console.log("\n\n Shutting down...");
 
   // Insert any remaining messages in batch
   if (batch.length > 0) {
-    console.log(`📤 Flushing remaining ${batch.length} messages...`);
+    console.log(` Flushing remaining ${batch.length} messages...`);
     await insertBatch();
   }
 
@@ -222,13 +206,13 @@ async function shutdown() {
   await clickhouse.close();
 
   // Print final metrics
-  console.log("\n📊 Final Metrics:");
+  console.log("\n Final Metrics:");
   console.log(`   Messages Processed: ${metrics.messagesProcessed}`);
   console.log(`   Batches Inserted: ${metrics.batchesInserted}`);
   console.log(`   Errors: ${metrics.errors}`);
   console.log(`   Last Insert: ${metrics.lastInsertTime}`);
 
-  console.log("\n✅ Shutdown complete");
+  console.log("\n Shutdown complete");
   process.exit(0);
 }
 

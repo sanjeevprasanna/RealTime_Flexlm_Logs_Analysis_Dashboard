@@ -1,2 +1,6 @@
 ./node_modules
 .env
+./logs/flexlm-all-scenarios.log
+./logs/flb_tails.db
+./frontend/node_modules/
+./backend/node_modules/
