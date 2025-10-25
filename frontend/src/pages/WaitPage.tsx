@@ -44,16 +44,17 @@ const WaitPage = () => {
       const response = await fetch(
         "http://localhost:3000/services/getWaitPageData",
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch wait data");
-      }
+      if (!response.ok) throw new Error("Failed to fetch wait data");
+
       const data = await response.json();
-      setHourlyData(data.hourlyData);
-      setWaitQueue(data.waitQueue);
+      setHourlyData(data.hourlyData || []);
+      setWaitQueue(data.waitQueue || []);
       setError(null);
     } catch (err) {
       console.error("Error fetching wait data:", err);
       setError(err.message);
+      setHourlyData([]);
+      setWaitQueue([]);
     } finally {
       setLoading(false);
     }

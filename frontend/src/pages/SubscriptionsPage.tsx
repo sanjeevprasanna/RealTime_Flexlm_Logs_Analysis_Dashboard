@@ -87,7 +87,7 @@ const SubscriptionsPage = () => {
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              {["24h", "7d"].map((range) => (
+              {["24h"].map((range) => (
                 <Button
                   key={range}
                   size="sm"
@@ -114,10 +114,13 @@ const SubscriptionsPage = () => {
                     dataKey="hour"
                     stroke="#9CA3AF"
                     tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                    type="category"
+                    interval={0} // show all labels
                   />
                   <YAxis
                     stroke="#9CA3AF"
                     tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                    domain={[0, "auto"]} // start from 0, auto-scale max
                   />
                   <Tooltip
                     contentStyle={{

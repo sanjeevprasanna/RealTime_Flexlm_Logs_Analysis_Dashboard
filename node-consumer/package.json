@@ -22,6 +22,7 @@
   "license": "MIT",
   "dependencies": {
     "@clickhouse/client": "^0.2.10",
+    "dotenv": "^17.2.3",
     "kafkajs": "^2.2.4"
   }
 }

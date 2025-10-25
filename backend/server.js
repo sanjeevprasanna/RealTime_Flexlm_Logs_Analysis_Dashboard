@@ -11,10 +11,6 @@ const {
   getLivePageData,
   getWaitPageData,
 } = require("./services/Flexlogsservices.js");
-const { error } = require("console");
-const {
-  collapseTextChangeRangesAcrossMultipleVersions,
-} = require("typescript");
 
 const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
@@ -84,7 +80,7 @@ app.get("/services/getWaitPageData", async (req, res) => {
 //DenialsPage
 app.get("/services/getDenialPageData", async (req, res) => {
   try {
-    const data = getDenialPageData();
+    const data = await getDenialPageData();
     res.json(data);
   } catch (er) {
     console.error("Error fetching denial page data", er);

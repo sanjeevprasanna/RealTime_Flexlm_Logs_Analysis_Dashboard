@@ -129,8 +129,13 @@ const LivePage = () => {
                   dataKey="time"
                   stroke="#9CA3AF"
                   tick={{ fill: "#9CA3AF" }}
+                // domain={[0, "dataMax + 10"]}
                 />
-                <YAxis stroke="#9CA3AF" tick={{ fill: "#9CA3AF" }} />
+                <YAxis
+                  stroke="#9CA3AF"
+                  tick={{ fill: "#9CA3AF" }}
+                // domain={[0, "dataMax + 50"]}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#1F2937",

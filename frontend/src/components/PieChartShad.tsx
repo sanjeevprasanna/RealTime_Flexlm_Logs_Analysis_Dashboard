@@ -17,8 +17,11 @@ import {
 import type { PieChartHomePageProps } from "@/lib/types";
 
 export function PieChartShad({ data }: PieChartHomePageProps) {
+  // Filter out items with active_count <= 0
+  const filteredData = data.filter((d) => d.active_count > 0);
+
   const chartConfig: ChartConfig = Object.fromEntries(
-    data.map((d, i) => [
+    filteredData.map((d, i) => [
       d.daemon,
       {
         label: d.daemon,
@@ -27,7 +30,7 @@ export function PieChartShad({ data }: PieChartHomePageProps) {
     ]),
   );
 
-  const chartData = data.map((d, i) => ({
+  const chartData = filteredData.map((d, i) => ({
     daemon: d.daemon,
     active_count: d.active_count,
     fill: `var(--chart-${(i % 5) + 1})`,
@@ -42,17 +45,14 @@ export function PieChartShad({ data }: PieChartHomePageProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex justify-center items-center">
-        <ChartContainer
-          config={chartConfig}
-          className="w-full h-[300px]"
-        >
+        <ChartContainer config={chartConfig} className="w-full h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <ChartTooltip
                 content={
-                  <ChartTooltipContent 
-                    nameKey="active_count" 
-                    hideLabel 
+                  <ChartTooltipContent
+                    nameKey="active_count"
+                    hideLabel
                     className="bg-gray-800 border-gray-700"
                   />
                 }

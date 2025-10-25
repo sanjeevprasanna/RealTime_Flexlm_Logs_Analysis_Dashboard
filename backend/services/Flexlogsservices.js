@@ -9,7 +9,7 @@ async function getDailyActiveCountsLast30Days() {
       )
       SELECT
         d.date,
-        coalesce(sum(CASE WHEN operation = 'IN' THEN 1 WHEN operation = 'OUT' THEN -1 ELSE 0 END), 0) AS active_count
+        coalesce(sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END), 0) AS active_count
       FROM dates d
       LEFT JOIN flexlm_logs l ON toDate(l.event_time) = d.date
       GROUP BY d.date
@@ -25,7 +25,7 @@ async function getActiveVendors() {
     query: `
       SELECT 
         daemon,
-        sum(CASE WHEN operation = 'IN' THEN 1 WHEN operation = 'OUT' THEN -1 ELSE 0 END) AS active_count
+        sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END) AS active_count
       FROM flexlm_logs
       GROUP BY daemon
       ORDER BY active_count DESC
@@ -51,11 +51,11 @@ async function getSummaryHomePage() {
         GROUP BY feature
       ),
       active_today AS (
-        SELECT sum(CASE WHEN operation = 'IN' THEN 1 WHEN operation = 'OUT' THEN -1 ELSE 0 END) AS cnt
+        SELECT sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END) AS cnt
         FROM flexlm_logs WHERE toDate(event_time) = today()
       ),
       active_yesterday AS (
-        SELECT sum(CASE WHEN operation = 'IN' THEN 1 WHEN operation = 'OUT' THEN -1 ELSE 0 END) AS cnt
+        SELECT sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END) AS cnt
         FROM flexlm_logs WHERE toDate(event_time) = today() - 1
       ),
       vendors_today AS (
@@ -220,13 +220,15 @@ async function getSubsPageData() {
 }
 
 const getDenialPageData = async () => {
+  // Hourly denied licenses
   const hourlyQuery = `
     SELECT 
-      formatDateTime(event_time, '%H:00') AS hour,
+      formatDateTime(event_time, '%H:00', 'Asia/Kolkata') AS hour,
       daemon AS vendor,
       count() AS count
     FROM flexlm_logs
-    WHERE toDate(event_time) = today() AND operation = 'DENIED'
+    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+      AND operation = 'DENIED'
     GROUP BY hour, vendor
     ORDER BY hour ASC
   `;
@@ -236,14 +238,15 @@ const getDenialPageData = async () => {
     format: "JSONEachRow",
   });
 
-  const hourlyData = await hourlyResult.json();
+  const hourlyDataRaw = await hourlyResult.json(); // <- make sure you await
 
   const hours = Array.from({ length: 24 }, (_, i) => {
     const label = `${String(i).padStart(2, "0")}:00`;
-    const perVendor = hourlyData.filter((row) => row.hour === label);
+    const perVendor = hourlyDataRaw.filter((row) => row.hour === label);
     const vendorCounts = Object.fromEntries(
       perVendor.map((r) => [r.vendor.toLowerCase(), r.count]),
     );
+
     return {
       hour: label,
       cadence: vendorCounts.cadence || 0,
@@ -252,13 +255,15 @@ const getDenialPageData = async () => {
     };
   });
 
+  // Table of features with denials
   const tableQuery = `
     SELECT 
       feature,
       daemon AS vendor,
       count() AS denied
     FROM flexlm_logs
-    WHERE toDate(event_time) = today() AND operation = 'DENIED'
+    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+      AND operation = 'DENIED'
     GROUP BY feature, vendor
     ORDER BY denied DESC
     LIMIT 50
@@ -358,14 +363,13 @@ async function getLivePageData() {
 }
 
 async function getWaitPageData() {
-  // Get hourly wait/denial counts for today (24 hours)
   const hourlyWaitQuery = `
     SELECT
-      toHour(event_time) AS hour,
+      toHour(event_time, 'Asia/Kolkata') AS hour,
       count() AS waitCount
     FROM flexlm_logs
-    WHERE toDate(event_time) = today()
-      AND operation = 'DENIED'
+    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+      AND operation = 'QUEUED'
     GROUP BY hour
     ORDER BY hour ASC
   `;
@@ -377,7 +381,6 @@ async function getWaitPageData() {
 
   const hourlyRaw = await hourlyResult.json();
 
-  // Create 24-hour array
   const hourlyData = Array.from({ length: 24 }, (_, i) => {
     const hourData = hourlyRaw.find((h) => h.hour === i);
     return {
@@ -386,7 +389,6 @@ async function getWaitPageData() {
     };
   });
 
-  // Get current users experiencing denials (recent denials as "waiting")
   const currentWaitQuery = `
     SELECT
       feature,
@@ -396,9 +398,8 @@ async function getWaitPageData() {
       max(event_time) AS last_denial,
       count() AS denial_count
     FROM flexlm_logs
-    WHERE toDate(event_time) = today()
-      AND operation = 'DENIED'
-      AND event_time >= now() - INTERVAL 1 HOUR
+    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+      AND operation = 'QUEUED'
     GROUP BY feature, user, daemon
     ORDER BY last_denial DESC
     LIMIT 50
@@ -409,29 +410,20 @@ async function getWaitPageData() {
     format: "JSONEachRow",
   });
 
-  const currentWaitRaw = await currentWaitResult.json();
+  const currentWait = await currentWaitResult.json();
 
-  const waitQueue = currentWaitRaw.map((w) => {
-    const durationMs = new Date(w.last_denial) - new Date(w.first_denial);
-    const totalSeconds = Math.floor(durationMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const duration = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  const waitQueue = currentWait.map((r) => ({
+    feature: r.feature,
+    user: r.user,
+    vendor: r.vendor,
+    denialCount: r.denial_count,
+    duration: `${Math.round(
+      (new Date(r.last_denial) - new Date(r.first_denial)) / 60000,
+    )} min`,
+    status: "Waiting",
+  }));
 
-    return {
-      feature: w.feature,
-      user: w.user,
-      vendor: w.vendor.toLowerCase(),
-      duration,
-      status: "waiting",
-      denialCount: w.denial_count,
-    };
-  });
-
-  return {
-    hourlyData,
-    waitQueue,
-  };
+  return { hourlyData, waitQueue };
 }
 
 module.exports = {
