@@ -39,25 +39,25 @@ async function getActiveVendors() {
 async function getSummaryHomePage() {
   const query = `
   WITH
-  -- Current active licenses (live right now)
+  -- Current active licenses (cumulative from all time)
   active_now AS (
     SELECT 
       sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS cnt
     FROM flexlm_logs
-    WHERE toDate(event_time) = today()
+    WHERE toDate(event_time) <= today()
       AND operation IN ('OUT', 'IN')
   ),
   
-  -- Active licenses at end of yesterday (for comparison)
+  -- Active licenses at end of yesterday
   active_yesterday_eod AS (
     SELECT 
       sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS cnt
     FROM flexlm_logs
-    WHERE toDate(event_time) <= today() - 1
+    WHERE toDate(event_time) < today()
       AND operation IN ('OUT', 'IN')
   ),
   
-  -- Active vendors (vendors with active licenses right now)
+  -- Active vendors (cumulative)
   vendors_active AS (
     SELECT count(DISTINCT daemon) AS cnt
     FROM (
@@ -65,7 +65,7 @@ async function getSummaryHomePage() {
         daemon,
         sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS net
       FROM flexlm_logs
-      WHERE toDate(event_time) = today()
+      WHERE toDate(event_time) <= today()
         AND operation IN ('OUT', 'IN')
       GROUP BY daemon
       HAVING net > 0
@@ -80,7 +80,7 @@ async function getSummaryHomePage() {
         daemon,
         sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS net
       FROM flexlm_logs
-      WHERE toDate(event_time) <= today() - 1
+      WHERE toDate(event_time) < today()
         AND operation IN ('OUT', 'IN')
       GROUP BY daemon
       HAVING net > 0
@@ -101,20 +101,27 @@ async function getSummaryHomePage() {
     WHERE toDate(event_time) = today() - 1
   ),
   
-  -- License capacity and usage (by feature and daemon to avoid duplicates)
-  latest_licenses AS (
+  -- Total license capacity (all features, regardless of usage)
+  total_capacity AS (
     SELECT 
       feature,
       daemon,
-      argMax(licenses_total, event_time) AS total,
+      argMax(licenses_total, event_time) AS total
+    FROM flexlm_logs
+    WHERE toDate(event_time) <= today()
+    GROUP BY feature, daemon
+  ),
+  
+  -- Currently used licenses (only active checkouts)
+  used_licenses AS (
+    SELECT 
       sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS used
     FROM flexlm_logs
-    WHERE toDate(event_time) = today()
+    WHERE toDate(event_time) <= today()
       AND operation IN ('OUT', 'IN')
     GROUP BY feature, daemon
     HAVING used > 0
   )
-
 SELECT
   COALESCE((SELECT cnt FROM active_now), 0) AS active_today,
   COALESCE((SELECT cnt FROM active_yesterday_eod), 0) AS active_yesterday,
@@ -122,8 +129,8 @@ SELECT
   COALESCE((SELECT cnt FROM vendors_yesterday), 0) AS vendors_yesterday,
   COALESCE((SELECT cnt FROM events_today), 0) AS events_today,
   COALESCE((SELECT cnt FROM events_yesterday), 0) AS events_yesterday,
-  COALESCE((SELECT sum(total) FROM latest_licenses), 0) AS total_licenses,
-  COALESCE((SELECT sum(used) FROM latest_licenses), 0) AS used_licenses
+  COALESCE((SELECT sum(total) FROM total_capacity), 0) AS total_licenses,
+  COALESCE((SELECT sum(used) FROM used_licenses), 0) AS used_licenses
   `;
 
   const result = await client.query({ query, format: "JSONEachRow" });
@@ -137,13 +144,13 @@ SELECT
   }
 
   const totalLicenses = data.total_licenses || 0;
-  const usedLicenses = data.used_licenses || 0;
-  const availableLicenses = totalLicenses - usedLicenses;
+  const usedLicenses = Math.max(data.used_licenses || 0, 0);
+  const availableLicenses = Math.max(totalLicenses - usedLicenses, 0);
 
   return {
     activeLicenses: {
-      today: data.active_today || 0,
-      yesterday: data.active_yesterday || 0,
+      today: Math.max(Number(data.active_today) || 0, 0),
+      yesterday: Math.max(Number(data.active_yesterday) || 0, 0),
       trend: calcTrend(data.active_today, data.active_yesterday),
     },
     activeVendors: {

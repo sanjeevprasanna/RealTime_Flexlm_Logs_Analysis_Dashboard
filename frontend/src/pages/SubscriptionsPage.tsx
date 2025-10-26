@@ -183,24 +183,23 @@ useEffect(() => {
               </TableCell>
 
               {/* Horizontally scrollable user badges */}
-              <TableCell>
-                <div className="flex gap-1 overflow-x-auto max-w-[250px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
-                  {row.users.slice(0, 3).map((user) => (
-                    <Badge
-                      key={user}
-                      className=" bg-gray-700 text-gray-200 hover:bg-gray-600 whitespace-nowrap"
-                    >
-                      {user}
-                    </Badge>
-                  ))}
-                  {row.users.length > 3 && (
-                    <Badge className="bg-gray-700 text-gray-300 whitespace-nowrap">
-                      +{row.users.length - 3}
-                    </Badge>)
-                  }
-                </div>
-              </TableCell>
-            </TableRow>
+      <TableCell>
+  <div className="flex flex-wrap gap-1 max-w-[300px]">
+    {row.users.slice(0, row.users.length).map((user) => (
+      <Badge
+        key={user}
+        className="bg-gray-700 text-gray-200 hover:bg-gray-600 whitespace-nowrap text-xs"
+      >
+        {user}
+      </Badge>
+    ))}
+    {/* {row.users.length > 9 && ( */}
+    {/*   <Badge className="bg-gray-700 text-gray-300 whitespace-nowrap text-xs"> */}
+    {/*     +{row.users.length - 9} */}
+    {/*   </Badge> */}
+    {/* )} */}
+  </div>
+</TableCell>            </TableRow>
           ))}
         </TableBody>
       </Table>

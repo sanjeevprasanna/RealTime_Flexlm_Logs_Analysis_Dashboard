@@ -413,24 +413,26 @@ const LivePage = () => {
                             </span>
                           </td>
                           <td className="py-3 px-4">
-                            <div className="flex flex-wrap gap-1">
-                              {row.users.slice(0, 3).map((user) => (
-                                <Badge
-                                  key={user}
-                                  variant="secondary"
-                                  className="bg-gray-700/50 text-gray-300 text-xs border border-gray-600"
-                                >
-                                  {user}
-                                </Badge>
-                              ))}
-                              {row.users.length > 3 && (
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-gray-700/50 text-gray-300 text-xs border border-gray-600 font-semibold"
-                                >
-                                  +{row.users.length - 3}
-                                </Badge>
-                              )}
+                            <div className="flex flex-wrap gap-1 max-w-[300px]">
+                              {row.users
+                                .slice(0, row.users.length)
+                                .map((user) => (
+                                  <Badge
+                                    key={user}
+                                    variant="secondary"
+                                    className="bg-gray-700/50 text-gray-300 text-xs border border-gray-600"
+                                  >
+                                    {user}
+                                  </Badge>
+                                ))}
+                              {/* {row.users.length > 3 && ( */}
+                              {/*   <Badge */}
+                              {/*     variant="secondary" */}
+                              {/*     className="bg-gray-700/50 text-gray-300 text-xs border border-gray-600 font-semibold" */}
+                              {/*   > */}
+                              {/*     +{row.users.length - 3} */}
+                              {/*   </Badge> */}
+                              {/* )} */}
                             </div>
                           </td>
                         </tr>

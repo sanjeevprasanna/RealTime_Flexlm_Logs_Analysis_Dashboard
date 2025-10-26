@@ -958,3 +958,110 @@ synopsys) RESERVED: "vcs" v23.10 user alice@floorplan01 (RESERVED for GROUP CAE)
 
 
 
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (cadence) OUT: "spectre" v21.1  user 12hipriya@analog04  (handle 32784) 11/40
+17:05:18 (altair) OUT: "optistruct" v2022.3  user 12hiarun@cadnode05  (handle 45217) 21/50
+17:05:18 (synopsys) OUT: "verdi" vR-2022.09  user 12hideepa@eda06  (handle 29873) 5/20
+
+
+
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (cadence) IN: "spectre" v21.1  user 12hipriya@analog04  (handle 32784) 11/40
+17:05:18 (altair) IN: "optistruct" v2022.3  user 12hiarun@cadnode05  (handle 45217) 21/50
+17:05:18 (synopsys) IN: "verdi" vR-2022.09  user 12hideepa@eda06  (handle 29873) 5/20
+
+
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) IN: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+
+
+# ---- Server reread (lmreread) ----------------------------------------------
+10:11:00 (lmgrd) REREAD: lmreread received from admin "jbennet" on ronna
+10:11:00 (lmgrd) Rereading license file(s) and signaling vendor daemons to reread options
+10:11:01 (cadence) REREAD: options file "/opt/flexlm/options/cadence.opt" reread completed
+10:11:01 (synopsys) REREAD: options file "/opt/flexlm/options/synopsys.opt" reread completed
+10:11:01 (altair)  REREAD: options file "/opt/flexlm/options/altair.opt" reread completed
+
+
+
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+
+
+
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user 12hivijay@simnode02  (handle 21345) 7/30
+
+
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab1jay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivafsfijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivadfijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12vijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivvvijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivafafijay@simnode02  (handle 21345) 7/30
+17:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hie32vijay@simnode02  (handle 21345) 7/30
+
+
+19:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab1jay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivafsfijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivadfijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12vijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivvvijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hivafafijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) OUT: "hspice" vR-2023.12  user ab12hie32vijay@simnode02  (handle 21345) 7/30
+
+
+
+19:05:18 (synopsys) IN: "hspice" vR-2023.12  user ab1jay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) IN: "hspice" vR-2023.12  user ab12hivafsfijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) IN: "hspice" vR-2023.12  user ab12hivadfijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) IN: "hspice" vR-2023.12  user ab12vijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) IN: "hspice" vR-2023.12  user ab12hivvvijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) IN: "hspice" vR-2023.12  user ab12hivafafijay@simnode02  (handle 21345) 7/30
+19:05:18 (synopsys) IN: "hspice" vR-2023.12  user ab12hie32vijay@simnode02  (handle 21345) 7/30
+
+
+12:46:10 (synopsys) OUT: "dc_shell" v2023.06  user john@design01  (handle 10021) 1/20
+12:46:40 (synopsys) OUT:  "dc_shell" v2023.06  user john@design01  (handle 10021)
+
+12:47:12 (cadence) OUT: "innovus" v23.10  user alice@floorplan01  (handle 20022) 5/25
+12:47:59 (cadence) OUT:  "innovus" v23.10  user alice@floorplan01  (handle 20022)
+
+
+12:48:05 (altair)  OUT: "optistruct" v2022.1  user dave@cae01  (RESERVED for GROUP CAE) (handle 30023) 3/10
+12:55:10 (altair)  OUT:  "optistruct" v2022.1  user dave@cae01  (handle 30023)
+
+
+
+12:48:05 (altair)  OUT: "optistruct" v2022.1  user dave@cae01  (RESERVED for GROUP CAE) (handle 30023) 3/10
+12:55:10 (altair)  OUT:  "optistruct" v2022.1  user dave@cae01  (handle 30023)
+
+
+12:48:05 (altair)  OUT: "optistruct" v2022.1  user dave@cae01  (RESERVED for GROUP CAE) (handle 30023) 3/10
+12:55:10 (altair)  OUT:  "optistruct" v2022.1  user dave@cae01  (handle 30023)
+
+12:46:10 (synopsys) OUT: "dc_shell" v2023.06  user john@design01  (handle 10021) 1/20
+12:46:40 (synopsys) OUT:  "dc_shell" v2023.06  user john@design01  (handle 10021)
+
+12:46:10 (synopsys) OUT: "alpaca_shell" v2023.06  user john@design01  (handle 10021) 1/20
+12:46:40 (synopsys) OUT:  "sanj" v2023.06  user john@design01  (handle 10021)
+synopsys) RESERVED: "vcs" v23.10 user alice@floorplan01 (RESERVED for GROUP CAE) (handle 90600) 7/17
+
+

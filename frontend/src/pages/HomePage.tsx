@@ -1,39 +1,125 @@
-import * as React from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  LabelList,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-} from "recharts";
+import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts";
+
+import { Activity, Users, Calendar, Database } from "lucide-react";
+
+import React from "react";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  CartesianGrid,
+  Cell,
+  Line,
+  ComposedChart,
+} from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Users,
-  Calendar,
-  Database,
-} from "lucide-react";
+import { TrendingUp, BarChart3 } from "lucide-react";
 
-// BarChart Component
+// Enhanced Tooltip Component
+const EnhancedTooltipContent = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-900/95 backdrop-blur-md border border-emerald-500/40 rounded-lg p-3 shadow-2xl">
+        <p className="text-gray-300 text-xs font-medium mb-1.5">
+          {new Date(label).toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </p>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-lg shadow-emerald-500/50"></div>
+          <span className="text-white text-base font-bold">
+            {payload[0].value.toLocaleString()} users
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+// Custom Bar Shape with Gradient and Glow
+const GradientBarShape = (props) => {
+  const { fill, x, y, width, height, index, payload } = props;
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  return (
+    <g
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{ cursor: "pointer" }}
+    >
+      <defs>
+        <linearGradient id={`barGradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
+          <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.75} />
+        </linearGradient>
+        <filter
+          id={`glow-${index}`}
+          x="-50%"
+          y="-50%"
+          width="200%"
+          height="200%"
+        >
+          <feGaussianBlur
+            stdDeviation={isHovered ? "5" : "0"}
+            result="coloredBlur"
+          />
+          <feMerge>
+            <feMergeNode in="coloredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={`url(#barGradient-${index})`}
+        filter={`url(#glow-${index})`}
+        rx="6"
+        opacity={isHovered ? 1 : 0.88}
+        style={{
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          transform: isHovered ? "translateY(-3px)" : "translateY(0)",
+        }}
+      />
+      {isHovered && (
+        <rect
+          x={x}
+          y={y - 3}
+          width={width}
+          height={height}
+          fill="url(#barGradient-${index})"
+          rx="6"
+          opacity="0.3"
+          style={{
+            transition: "all 0.3s ease",
+          }}
+        />
+      )}
+    </g>
+  );
+};
+
+// Main Component
 const BarChartShad = ({ data }) => {
   const [activeChart, setActiveChart] = React.useState("active_count");
+  const [viewMode, setViewMode] = React.useState("bars"); // "bars" or "trend"
 
   const chartConfig = {
     active_count: {
@@ -48,16 +134,29 @@ const BarChartShad = ({ data }) => {
     };
   }, [data]);
 
+  const stats = React.useMemo(() => {
+    const average = Math.round(total.active_count / data.length);
+    const firstWeek =
+      data.slice(0, 7).reduce((acc, curr) => acc + curr.active_count, 0) / 7;
+    const lastWeek =
+      data.slice(-7).reduce((acc, curr) => acc + curr.active_count, 0) / 7;
+    const trendPercentage = (
+      ((lastWeek - firstWeek) / firstWeek) *
+      100
+    ).toFixed(1);
+    const isPositive = trendPercentage > 0;
+
+    return { average, trendPercentage, isPositive };
+  }, [data, total]);
+
   return (
     <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 h-full shadow-2xl">
       <CardHeader className="flex flex-col items-stretch border-b border-gray-700/50 !p-0 sm:flex-row">
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 pt-5 pb-4 sm:!py-6">
           <CardTitle className="text-white text-xl font-semibold tracking-tight">
-            Active Users - Last 30 Days
+            License Usage- Last 30 Days
           </CardTitle>
-          <CardDescription className="text-gray-400 text-sm">
-            Daily active user count trend
-          </CardDescription>
+          <CardDescription className="text-gray-400 text-sm flex items-center gap-2"></CardDescription>
         </div>
         <div className="flex">
           <button
@@ -75,15 +174,81 @@ const BarChartShad = ({ data }) => {
         </div>
       </CardHeader>
       <CardContent className="px-4 sm:p-6 pt-6">
+        {/* <div className="flex justify-end mb-3 gap-2"> */}
+        {/*   <button */}
+        {/*     onClick={() => setViewMode("bars")} */}
+        {/*     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === "bars" */}
+        {/*         ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40" */}
+        {/*         : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60" */}
+        {/*       }`} */}
+        {/*   > */}
+        {/*     <BarChart3 className="w-3.5 h-3.5 inline mr-1" /> */}
+        {/*     Bars */}
+        {/*   </button> */}
+        {/*   <button */}
+        {/*     onClick={() => setViewMode("trend")} */}
+        {/*     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === "trend" */}
+        {/*         ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40" */}
+        {/*         : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60" */}
+        {/*       }`} */}
+        {/*   > */}
+        {/*     <TrendingUp className="w-3.5 h-3.5 inline mr-1" /> */}
+        {/*     Trend */}
+        {/*   </button> */}
+        {/* </div> */}
+        {/**/}
         <ChartContainer
           config={chartConfig}
           className="aspect-auto h-[320px] w-full"
         >
-          <BarChart
-            accessibilityLayer
-            data={data}
-            margin={{ left: 12, right: 12, top: 20 }}
-          >
+          {/* {viewMode === "bars" ? ( */}
+          {/*   <BarChart */}
+          {/*     accessibilityLayer */}
+          {/*     data={data} */}
+          {/*     margin={{ left: 12, right: 12, top: 20 }} */}
+          {/*   > */}
+          {/*     <CartesianGrid */}
+          {/*       vertical={false} */}
+          {/*       stroke="#374151" */}
+          {/*       strokeDasharray="3 3" */}
+          {/*       opacity={0.3} */}
+          {/*     /> */}
+          {/*     <XAxis */}
+          {/*       dataKey="date" */}
+          {/*       tickLine={false} */}
+          {/*       axisLine={false} */}
+          {/*       tickMargin={8} */}
+          {/*       minTickGap={32} */}
+          {/*       stroke="#9CA3AF" */}
+          {/*       tick={{ fill: "#9CA3AF", fontSize: 12 }} */}
+          {/*       tickFormatter={(value) => { */}
+          {/*         const date = new Date(value); */}
+          {/*         return date.toLocaleDateString("en-US", { */}
+          {/*           month: "short", */}
+          {/*           day: "numeric", */}
+          {/*         }); */}
+          {/*       }} */}
+          {/*     /> */}
+          {/*     <ChartTooltip content={<EnhancedTooltipContent />} /> */}
+          {/*     <Bar */}
+          {/*       dataKey={activeChart} */}
+          {/*       shape={<GradientBarShape />} */}
+          {/*       animationDuration={800} */}
+          {/*       animationBegin={0} */}
+          {/*     /> */}
+          {/*   </BarChart> */}
+          {/* ) : ( */}
+          <ComposedChart data={data} margin={{ left: 12, right: 12, top: 20 }}>
+            <defs>
+              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.05} />
+              </linearGradient>
+              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#10b981" />
+                <stop offset="100%" stopColor="#06b6d4" />
+              </linearGradient>
+            </defs>
             <CartesianGrid
               vertical={false}
               stroke="#374151"
@@ -106,28 +271,30 @@ const BarChartShad = ({ data }) => {
                 });
               }}
             />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  className="bg-gray-800 text-white border-gray-500 shadow-lg"
-                  nameKey="active_count"
-                  labelFormatter={(value) =>
-                    new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
-                  }
-                />
-              }
-            />
+            <ChartTooltip content={<EnhancedTooltipContent />} />
             <Bar
               dataKey={activeChart}
-              fill={chartConfig.active_count.color}
-              radius={[6, 6, 0, 0]}
-              activeBar={"#374151"}
+              fill="url(#areaGradient)"
+              opacity={0.4}
+              radius={[4, 4, 0, 0]}
+              animationDuration={600}
             />
-          </BarChart>
+            <Line
+              type="monotone"
+              dataKey={activeChart}
+              stroke="url(#lineGradient)"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{
+                r: 6,
+                fill: "#10b981",
+                stroke: "#fff",
+                strokeWidth: 2,
+              }}
+              animationDuration={1000}
+            />
+          </ComposedChart>
+          {/* )} */}
         </ChartContainer>
       </CardContent>
     </Card>
@@ -160,11 +327,9 @@ const PieChartShad = ({ data }) => {
     <Card className="flex flex-col h-full bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 shadow-2xl">
       <CardHeader className="items-center pb-4 border-b border-gray-700/50">
         <CardTitle className="text-white text-xl font-semibold tracking-tight">
-          Active Vendors
+          Vendor Distribution
         </CardTitle>
-        <CardDescription className="text-gray-400 text-sm">
-          Current active license daemons
-        </CardDescription>
+        <CardDescription className="text-gray-400 text-sm"></CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-center items-center pt-6">
         <ChartContainer config={chartConfig} className="w-full h-[280px]">
@@ -201,8 +366,8 @@ const PieChartShad = ({ data }) => {
           </ResponsiveContainer>
         </ChartContainer>
         <div className="text-center mt-4">
-          <p className="text-3xl font-bold text-white">{totalCount}</p>
-          <p className="text-sm text-gray-400 mt-1">Total Active Licenses</p>
+          {/* <p className="text-3xl font-bold text-white">{totalCount}</p> */}
+          <p className="text-sm text-gray-400 mt-1">Vendor Distribution</p>
         </div>
       </CardContent>
     </Card>
@@ -333,7 +498,7 @@ const HomePage = () => {
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-950">
       <div className="flex-1 p-6 overflow-auto">
         {/* Main Chart */}
-        <div className="h-[500px] rounded-xl mb-6 transform hover:scale-[1.01] transition-transform duration-300">
+        <div className="h-[560px] rounded-xl mb-6 transform hover:scale-[1.01] transition-transform duration-300">
           <BarChartShad data={dashboardData} />
         </div>
 
