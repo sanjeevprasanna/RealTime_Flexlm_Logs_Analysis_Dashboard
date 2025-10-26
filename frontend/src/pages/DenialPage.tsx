@@ -6,14 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -31,7 +23,16 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Area,
+  AreaChart,
 } from "recharts";
+import {
+  XCircle,
+  AlertTriangle,
+  TrendingDown,
+  Filter,
+  RefreshCw,
+} from "lucide-react";
 
 const DenialPage = () => {
   const [selectedVendor, setSelectedVendor] = useState("all");
@@ -42,7 +43,6 @@ const DenialPage = () => {
 
   useEffect(() => {
     fetchDenialData();
-    // Auto-refresh every 30 seconds
     const interval = setInterval(fetchDenialData, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -58,17 +58,12 @@ const DenialPage = () => {
       }
       const data = await response.json();
 
-      console.log("Received data:", data); // Debug log
-
-      // Defensive programming - check if data exists
       if (!data) {
         throw new Error("No data received from server");
       }
 
-      // Set hourly data with fallback
       setHourlyData(data.hourlyData || []);
 
-      // Transform tableData to lowercase vendor names with fallback
       const transformedTableData = (data.tableData || []).map((item) => ({
         feature: item.feature,
         vendor: item.vendor?.toLowerCase() || "unknown",
@@ -80,7 +75,6 @@ const DenialPage = () => {
     } catch (err) {
       console.error("Error fetching denial data:", err);
       setError(err.message);
-      // Set empty arrays to prevent undefined errors
       setHourlyData([]);
       setTableData([]);
     } finally {
@@ -93,11 +87,25 @@ const DenialPage = () => {
       ? tableData
       : tableData.filter((item) => item.vendor === selectedVendor);
 
-  // Extract unique vendors from tableData with fallback
   const vendors = [
     "all",
     ...new Set(tableData.map((item) => item.vendor).filter(Boolean)),
   ];
+
+  // Calculate summary stats
+  const totalDenials = tableData.reduce(
+    (sum, item) => sum + Number(item.denied),
+    0,
+  );
+  const cadenceDenials = tableData
+    .filter((item) => item.vendor === "cadence")
+    .reduce((sum, item) => sum + Number(item.denied), 0);
+  const altairDenials = tableData
+    .filter((item) => item.vendor === "altair")
+    .reduce((sum, item) => sum + Number(item.denied), 0);
+  const synopsysDenials = tableData
+    .filter((item) => item.vendor === "synopsys")
+    .reduce((sum, item) => sum + Number(item.denied), 0);
 
   const date = new Date();
 
@@ -105,7 +113,10 @@ const DenialPage = () => {
     return (
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-950">
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-gray-400 text-lg">Loading denial data...</div>
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="text-gray-400 text-lg">Loading denial data...</div>
+          </div>
         </div>
       </div>
     );
@@ -114,14 +125,18 @@ const DenialPage = () => {
   if (error) {
     return (
       <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-950">
-        <div className="flex-1 flex items-center justify-center flex-col gap-4">
-          <div className="text-red-400 text-lg">Error: {error}</div>
-          <button
-            onClick={fetchDenialData}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Retry
-          </button>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <div className="text-red-400 text-lg mb-4">Error: {error}</div>
+            <button
+              onClick={fetchDenialData}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 font-medium"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -130,59 +145,206 @@ const DenialPage = () => {
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-950">
       <div className="flex-1 p-6 overflow-auto space-y-6">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">
+        {/* Summary Cards */}
+        {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> */}
+        {/*   <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 shadow-xl hover:shadow-2xl transition-all duration-300"> */}
+        {/*     <CardHeader className="pb-3"> */}
+        {/*       <div className="flex items-center justify-between"> */}
+        {/*         <CardTitle className="text-sm font-medium text-gray-400 uppercase tracking-wide"> */}
+        {/*           Total Denials */}
+        {/*         </CardTitle> */}
+        {/*         <div className="p-2 rounded-lg bg-red-500/10 transition-transform hover:scale-110"> */}
+        {/*           <XCircle className="w-4 h-4 text-red-400" /> */}
+        {/*         </div> */}
+        {/*       </div> */}
+        {/*     </CardHeader> */}
+        {/*     <CardContent> */}
+        {/*       <div className="text-3xl font-bold text-white"> */}
+        {/*         {totalDenials} */}
+        {/*       </div> */}
+        {/*       <p className="text-xs text-gray-500 mt-1">All vendors today</p> */}
+        {/*     </CardContent> */}
+        {/*   </Card> */}
+        {/**/}
+        {/*   <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 shadow-xl hover:shadow-2xl transition-all duration-300"> */}
+        {/*     <CardHeader className="pb-3"> */}
+        {/*       <div className="flex items-center justify-between"> */}
+        {/*         <CardTitle className="text-sm font-medium text-gray-400 uppercase tracking-wide"> */}
+        {/*           Cadence */}
+        {/*         </CardTitle> */}
+        {/*         <div className="p-2 rounded-lg bg-green-500/10 transition-transform hover:scale-110"> */}
+        {/*           <TrendingDown className="w-4 h-4 text-green-400" /> */}
+        {/*         </div> */}
+        {/*       </div> */}
+        {/*     </CardHeader> */}
+        {/*     <CardContent> */}
+        {/*       <div className="text-3xl font-bold text-white"> */}
+        {/*         {cadenceDenials} */}
+        {/*       </div> */}
+        {/*       <p className="text-xs text-gray-500 mt-1">Denied requests</p> */}
+        {/*     </CardContent> */}
+        {/*   </Card> */}
+        {/**/}
+        {/*   <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 shadow-xl hover:shadow-2xl transition-all duration-300"> */}
+        {/*     <CardHeader className="pb-3"> */}
+        {/*       <div className="flex items-center justify-between"> */}
+        {/*         <CardTitle className="text-sm font-medium text-gray-400 uppercase tracking-wide"> */}
+        {/*           Altair */}
+        {/*         </CardTitle> */}
+        {/*         <div className="p-2 rounded-lg bg-yellow-500/10 transition-transform hover:scale-110"> */}
+        {/*           <TrendingDown className="w-4 h-4 text-yellow-400" /> */}
+        {/*         </div> */}
+        {/*       </div> */}
+        {/*     </CardHeader> */}
+        {/*     <CardContent> */}
+        {/*       <div className="text-3xl font-bold text-white"> */}
+        {/*         {altairDenials} */}
+        {/*       </div> */}
+        {/*       <p className="text-xs text-gray-500 mt-1">Denied requests</p> */}
+        {/*     </CardContent> */}
+        {/*   </Card> */}
+        {/**/}
+        {/*   <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 shadow-xl hover:shadow-2xl transition-all duration-300"> */}
+        {/*     <CardHeader className="pb-3"> */}
+        {/*       <div className="flex items-center justify-between"> */}
+        {/*         <CardTitle className="text-sm font-medium text-gray-400 uppercase tracking-wide"> */}
+        {/*           Synopsys */}
+        {/*         </CardTitle> */}
+        {/*         <div className="p-2 rounded-lg bg-purple-500/10 transition-transform hover:scale-110"> */}
+        {/*           <TrendingDown className="w-4 h-4 text-purple-400" /> */}
+        {/*         </div> */}
+        {/*       </div> */}
+        {/*     </CardHeader> */}
+        {/*     <CardContent> */}
+        {/*       <div className="text-3xl font-bold text-white"> */}
+        {/*         {synopsysDenials} */}
+        {/*       </div> */}
+        {/*       <p className="text-xs text-gray-500 mt-1">Denied requests</p> */}
+        {/*     </CardContent> */}
+        {/*   </Card> */}
+        {/* </div> */}
+        {/**/}
+        {/* Chart */}
+        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 shadow-2xl">
+          <CardHeader className="border-b border-gray-700/50">
+            <CardTitle className="text-white text-xl font-semibold tracking-tight">
               License Denials - {date.getDate()}/{date.getMonth() + 1}/
               {date.getFullYear()}
             </CardTitle>
-            <CardDescription className="text-gray-400">
-              Hourly denied license requests grouped by vendor
+            <CardDescription className="text-gray-400 text-sm">
+              Hourly denied license requests
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {hourlyData.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                No denial data available for today
+              <div className="text-center py-12">
+                <XCircle className="w-16 h-16 text-gray-600 mx-auto mb-4 opacity-50" />
+                <div className="text-gray-400 text-lg font-medium">
+                  No denial data available for today
+                </div>
+                <p className="text-gray-500 text-sm mt-2">
+                  Great! All license requests were successful
+                </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={hourlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <ResponsiveContainer width="100%" height={380}>
+                <LineChart
+                  data={hourlyData}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="cadenceGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient
+                      id="altairGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient
+                      id="synopsysGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#374151"
+                    opacity={0.3}
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="hour"
                     stroke="#9CA3AF"
-                    tick={{ fill: "#9CA3AF" }}
+                    tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#374151" }}
                   />
-                  <YAxis stroke="#9CA3AF" tick={{ fill: "#9CA3AF" }} />
+                  <YAxis
+                    stroke="#9CA3AF"
+                    tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#374151" }}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#1F2937",
                       border: "1px solid #374151",
-                      borderRadius: "6px",
+                      borderRadius: "8px",
                       color: "#fff",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                     }}
+                    labelStyle={{ fontWeight: "600", color: "#F59E0B" }}
                   />
-                  <Legend wrapperStyle={{ color: "#9CA3AF" }} />
+                  <Legend
+                    wrapperStyle={{
+                      color: "#9CA3AF",
+                      paddingTop: "20px",
+                    }}
+                    iconType="line"
+                  />
                   <Line
                     type="monotone"
                     dataKey="cadence"
                     stroke="#10B981"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
+                    dot={{ fill: "#10B981", strokeWidth: 0, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
                     name="Cadence"
                   />
                   <Line
                     type="monotone"
                     dataKey="altair"
                     stroke="#F59E0B"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
+                    dot={{ fill: "#F59E0B", strokeWidth: 0, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
                     name="Altair"
                   />
                   <Line
                     type="monotone"
                     dataKey="synopsys"
                     stroke="#8B5CF6"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
+                    dot={{ fill: "#8B5CF6", strokeWidth: 0, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
                     name="Synopsys"
                   />
                 </LineChart>
@@ -191,88 +353,111 @@ const DenialPage = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+        {/* Table */}
+        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 shadow-2xl">
+          <CardHeader className="border-b border-gray-700/50">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <CardTitle className="text-white">
+                <CardTitle className="text-white text-xl font-semibold tracking-tight">
                   Denied License Requests
                 </CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardDescription className="text-gray-400 text-sm mt-1">
                   Features and vendors with license denial counts
                 </CardDescription>
               </div>
               {tableData.length > 0 && (
-                <Select
-                  value={selectedVendor}
-                  onValueChange={setSelectedVendor}
-                >
-                  <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Filter by vendor" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    {vendors.map((vendor) => (
-                      <SelectItem
-                        key={vendor}
-                        value={vendor}
-                        className="text-white hover:bg-gray-700"
-                      >
-                        {vendor === "all" ? "All Vendors" : vendor}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                  <Select
+                    value={selectedVendor}
+                    onValueChange={setSelectedVendor}
+                  >
+                    <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-white hover:bg-gray-700 transition-colors">
+                      <SelectValue placeholder="Filter by vendor" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      {vendors.map((vendor) => (
+                        <SelectItem
+                          key={vendor}
+                          value={vendor}
+                          className="text-white hover:bg-gray-700 focus:bg-gray-700"
+                        >
+                          {vendor === "all"
+                            ? "All Vendors"
+                            : vendor.charAt(0).toUpperCase() + vendor.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {filteredData.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                No denials found for today
+              <div className="text-center py-12">
+                <XCircle className="w-16 h-16 text-green-400 mx-auto mb-4 opacity-50" />
+                <div className="text-gray-400 text-lg font-medium">
+                  No denials found for today
+                </div>
+                <p className="text-gray-500 text-sm mt-2">
+                  All license requests were successful!
+                </p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-800 hover:bg-gray-800">
-                    <TableHead className="text-gray-300">Feature</TableHead>
-                    <TableHead className="text-gray-300">Vendor</TableHead>
-                    <TableHead className="text-gray-300">Denials</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredData.map((row, i) => (
-                    <TableRow
-                      key={i}
-                      className="border-gray-800 hover:bg-gray-800"
-                    >
-                      <TableCell className="font-medium text-white">
-                        {row.feature}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`border-gray-700 ${row.vendor === "cadence"
-                              ? "text-green-500"
-                              : row.vendor === "altair"
-                                ? "text-yellow-500"
-                                : "text-purple-500"
-                            }`}
+              <div className="rounded-lg border border-gray-800 overflow-hidden">
+                <div className="max-h-[500px] overflow-y-auto">
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-gray-800/95 backdrop-blur-sm z-10">
+                      <tr className="border-b border-gray-800">
+                        <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">
+                          Feature
+                        </th>
+                        <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">
+                          Vendor
+                        </th>
+                        <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">
+                          Denials
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredData.map((row, i) => (
+                        <tr
+                          key={i}
+                          className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors"
                         >
-                          {row.vendor}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-300">
-                        <Badge
-                          variant="secondary"
-                          className="bg-red-900/30 text-red-400 border-red-700"
-                        >
-                          {row.denied}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          <td className="py-3 px-4 font-medium text-white">
+                            {row.feature}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant="outline"
+                              className={`font-medium ${row.vendor === "cadence"
+                                  ? "text-green-400 border-green-400/30 bg-green-400/5"
+                                  : row.vendor === "altair"
+                                    ? "text-yellow-400 border-yellow-400/30 bg-yellow-400/5"
+                                    : "text-purple-400 border-purple-400/30 bg-purple-400/5"
+                                }`}
+                            >
+                              {row.vendor}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant="secondary"
+                              className="bg-red-500/10 text-red-400 border border-red-500/30 font-semibold inline-flex items-center gap-1"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              {row.denied}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

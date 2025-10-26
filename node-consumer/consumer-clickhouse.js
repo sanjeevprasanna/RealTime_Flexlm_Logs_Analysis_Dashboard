@@ -106,20 +106,26 @@ async function revokeAllLicenses(eventTime) {
 function transformMessage(kafkaMessage, topic, partition, offset) {
   try {
     const value = JSON.parse(kafkaMessage.value.toString());
-    // console.log(value);
+
     let eventTime;
     if (value["@timestamp"]) {
-      // Convert Unix timestamp to datetime
+      // Convert Unix timestamp to IST datetime
       const date = new Date(value["@timestamp"] * 1000);
-      eventTime = date.toISOString().slice(0, 19).replace("T", " ");
+
+      // Add IST offset (5 hours 30 minutes)
+      const istDate = new Date(date.getTime());
+      eventTime = istDate.toISOString().slice(0, 19).replace("T", " ");
     } else if (value.timestamp) {
       const now = new Date();
-      const localDate = now.toLocaleDateString("en-CA");
+      const istNow = new Date(now.getTime());
+      const localDate = istNow.toISOString().slice(0, 10);
       eventTime = `${localDate} ${value.timestamp}`;
     } else {
-      eventTime = new Date().toISOString().slice(0, 19).replace("T", " ");
+      const now = new Date();
+      const istNow = new Date(now.getTime());
+      eventTime = istNow.toISOString().slice(0, 19).replace("T", " ");
     }
-    // console.log(eventTime);
+
     const operation = value.operation || "N/A";
     const data = {
       event_time: eventTime,
@@ -142,7 +148,7 @@ function transformMessage(kafkaMessage, topic, partition, offset) {
         operation,
       ),
     };
-    // console.log(data);
+
     return data;
   } catch (error) {
     console.error("Error transforming message:", error.message);

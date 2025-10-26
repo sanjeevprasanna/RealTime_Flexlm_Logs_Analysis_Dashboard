@@ -38,49 +38,92 @@ async function getActiveVendors() {
 
 async function getSummaryHomePage() {
   const query = `
-    WITH
-      latest_licenses AS (
-        SELECT 
-          feature,
-          argMax(licenses_total, event_time) AS total,
-          argMax(licenses_used, event_time) AS used
-        FROM flexlm_logs
-        WHERE toDate(event_time) = today()
-          AND licenses_total IS NOT NULL
-          AND licenses_used IS NOT NULL
-        GROUP BY feature
-      ),
-      active_today AS (
-        SELECT sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END) AS cnt
-        FROM flexlm_logs WHERE toDate(event_time) = today()
-      ),
-      active_yesterday AS (
-        SELECT sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END) AS cnt
-        FROM flexlm_logs WHERE toDate(event_time) = today() - 1
-      ),
-      vendors_today AS (
-        SELECT count(DISTINCT daemon) AS cnt
-        FROM flexlm_logs WHERE toDate(event_time) = today()
-      ),
-      vendors_yesterday AS (
-        SELECT count(DISTINCT daemon) AS cnt
-        FROM flexlm_logs WHERE toDate(event_time) = today() - 1
-      ),
-      events_today AS (
-        SELECT count(*) AS cnt FROM flexlm_logs WHERE toDate(event_time) = today()
-      ),
-      events_yesterday AS (
-        SELECT count(*) AS cnt FROM flexlm_logs WHERE toDate(event_time) = today() - 1
-      )
-    SELECT
-      (SELECT cnt FROM active_today) AS active_today,
-      (SELECT cnt FROM active_yesterday) AS active_yesterday,
-      (SELECT cnt FROM vendors_today) AS vendors_today,
-      (SELECT cnt FROM vendors_yesterday) AS vendors_yesterday,
-      (SELECT cnt FROM events_today) AS events_today,
-      (SELECT cnt FROM events_yesterday) AS events_yesterday,
-      (SELECT sum(total) FROM latest_licenses) AS total_licenses,
-      (SELECT sum(used) FROM latest_licenses) AS used_licenses
+  WITH
+  -- Current active licenses (live right now)
+  active_now AS (
+    SELECT 
+      sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS cnt
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation IN ('OUT', 'IN')
+  ),
+  
+  -- Active licenses at end of yesterday (for comparison)
+  active_yesterday_eod AS (
+    SELECT 
+      sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS cnt
+    FROM flexlm_logs
+    WHERE toDate(event_time) <= today() - 1
+      AND operation IN ('OUT', 'IN')
+  ),
+  
+  -- Active vendors (vendors with active licenses right now)
+  vendors_active AS (
+    SELECT count(DISTINCT daemon) AS cnt
+    FROM (
+      SELECT 
+        daemon,
+        sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS net
+      FROM flexlm_logs
+      WHERE toDate(event_time) = today()
+        AND operation IN ('OUT', 'IN')
+      GROUP BY daemon
+      HAVING net > 0
+    )
+  ),
+  
+  -- Vendors active yesterday
+  vendors_yesterday AS (
+    SELECT count(DISTINCT daemon) AS cnt
+    FROM (
+      SELECT 
+        daemon,
+        sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS net
+      FROM flexlm_logs
+      WHERE toDate(event_time) <= today() - 1
+        AND operation IN ('OUT', 'IN')
+      GROUP BY daemon
+      HAVING net > 0
+    )
+  ),
+  
+  -- Events count (all operations today)
+  events_today AS (
+    SELECT count(*) AS cnt 
+    FROM flexlm_logs 
+    WHERE toDate(event_time) = today()
+  ),
+  
+  -- Events yesterday
+  events_yesterday AS (
+    SELECT count(*) AS cnt 
+    FROM flexlm_logs 
+    WHERE toDate(event_time) = today() - 1
+  ),
+  
+  -- License capacity and usage (by feature and daemon to avoid duplicates)
+  latest_licenses AS (
+    SELECT 
+      feature,
+      daemon,
+      argMax(licenses_total, event_time) AS total,
+      sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS used
+    FROM flexlm_logs
+    WHERE toDate(event_time) = today()
+      AND operation IN ('OUT', 'IN')
+    GROUP BY feature, daemon
+    HAVING used > 0
+  )
+
+SELECT
+  COALESCE((SELECT cnt FROM active_now), 0) AS active_today,
+  COALESCE((SELECT cnt FROM active_yesterday_eod), 0) AS active_yesterday,
+  COALESCE((SELECT cnt FROM vendors_active), 0) AS vendors_today,
+  COALESCE((SELECT cnt FROM vendors_yesterday), 0) AS vendors_yesterday,
+  COALESCE((SELECT cnt FROM events_today), 0) AS events_today,
+  COALESCE((SELECT cnt FROM events_yesterday), 0) AS events_yesterday,
+  COALESCE((SELECT sum(total) FROM latest_licenses), 0) AS total_licenses,
+  COALESCE((SELECT sum(used) FROM latest_licenses), 0) AS used_licenses
   `;
 
   const result = await client.query({ query, format: "JSONEachRow" });
@@ -123,16 +166,21 @@ async function getSummaryHomePage() {
 
 async function getSubsPageData() {
   const featuresQuery = `
-    SELECT 
-      feature,
-      daemon,
-      argMax(licenses_total, event_time) AS total,
-      argMax(licenses_used, event_time) AS used,
-      groupArray(DISTINCT user) AS users
-    FROM flexlm_logs
-    WHERE toDate(event_time) = today()
-      AND operation = 'IN'
-    GROUP BY feature, daemon
+ 
+SELECT
+    feature,
+    daemon,
+    argMax(licenses_total, event_time) AS total,
+    SUM(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS used,
+    groupArrayDistinct(user) AS users
+FROM flexlm_logs
+WHERE toDate(event_time) = today()
+  AND operation IN ('OUT', 'IN')
+GROUP BY feature, daemon
+HAVING used > 0
+ORDER BY daemon, feature;
+
+
   `;
 
   const featuresResult = await client.query({
@@ -140,35 +188,67 @@ async function getSubsPageData() {
     format: "JSONEachRow",
   });
   const featuresRaw = await featuresResult.json();
+  const activityQuery = `
+WITH user_sessions AS (
+  SELECT 
+    user,
+    feature,
+    handle,
+    min(event_time) AS access_time,
+    max(event_time) AS last_event_time,
+    SUM(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS net_count
+  FROM flexlm_logs
+  WHERE toDate(event_time) = today()
+    AND operation IN ('OUT', 'IN')
+  GROUP BY user, feature, handle
+  HAVING net_count > 0  -- Only active sessions (changed from >= 0)
+)
+SELECT 
+  user,
+  feature,
+  access_time,
+  dateDiff('second', access_time, now() + INTERVAL 5 HOUR + INTERVAL 30 MINUTE) AS duration_seconds,
+  true AS is_active
+FROM user_sessions
+ORDER BY access_time DESC
+`;
 
   const hourlyQuery = `
-    SELECT 
-      toHour(event_time) AS hour,
-      count(*) AS count
-    FROM flexlm_logs
-    WHERE toDate(event_time) = today()
-    GROUP BY hour
-    ORDER BY hour
+SELECT
+  hour,
+  count(DISTINCT feature) AS active_features,
+  sum(net_cnt) AS total_in_use
+FROM
+(
+  SELECT
+    feature,
+    toHour(event_time) AS hour,
+    SUM(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS net_cnt
+  FROM flexlm_logs
+  WHERE toDate(event_time) = today()
+    AND operation IN ('OUT', 'IN')
+  GROUP BY feature, hour
+  HAVING net_cnt > 0
+)
+GROUP BY hour
+ORDER BY hour ASC;
   `;
+
   const hourlyResult = await client.query({
     query: hourlyQuery,
     format: "JSONEachRow",
   });
+
   const hourlyRaw = await hourlyResult.json();
 
-  const activityQuery = `
-    SELECT 
-      user,
-      feature,
-      min(event_time) AS access_time,
-      dateDiff('second', min(event_time), max(event_time)) AS duration_seconds
-    FROM flexlm_logs
-    WHERE toDate(event_time) = today()
-      AND operation = 'IN'
-    GROUP BY user, feature
-    ORDER BY access_time DESC
-    LIMIT 20
-  `;
+  const hourlyData = Array.from({ length: 24 }, (_, i) => {
+    const hourData = hourlyRaw.find((h) => h.hour === i);
+    return {
+      hour: `${String(i).padStart(2, "0")}:00`,
+      count: hourData ? Math.max(hourData.total_in_use, 0) : 0,
+    };
+  });
+
   const activityResult = await client.query({
     query: activityQuery,
     format: "JSONEachRow",
@@ -183,28 +263,27 @@ async function getSubsPageData() {
     users: f.users || [],
   }));
 
-  const hourlyData = Array.from({ length: 24 }, (_, i) => {
-    const hourData = hourlyRaw.find((h) => h.hour === i);
-    return {
-      hour: `${String(i).padStart(2, "0")}:00`,
-      count: hourData ? hourData.count : 0,
-    };
-  });
-
   const userActivity = activityRaw.map((a) => {
     const durationSeconds = a.duration_seconds || 0;
     const hours = Math.floor(durationSeconds / 3600);
     const minutes = Math.floor((durationSeconds % 3600) / 60);
-    const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    const duration =
+      hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m` : "0";
+
+    // Parse the UTC time from database and display it as-is (it's already in IST format)
+    const accessTime = new Date(a.access_time + "Z") // Add Z to treat as UTC
+      .toLocaleTimeString("en-US", {
+        timeZone: "UTC", // Don't convert, just format
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
 
     return {
       user: a.user,
       feature: a.feature,
-      accessTime: new Date(a.access_time).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      duration,
+      accessTime: accessTime,
+      duration: a.is_active ? `${duration}` : duration,
     };
   });
 
@@ -219,17 +298,17 @@ async function getSubsPageData() {
   };
 }
 
-const getDenialPageData = async () => {
-  // Hourly denied licenses
+async function getDenialPageData() {
+  // Hourly denials by vendor
   const hourlyQuery = `
-    SELECT 
-      formatDateTime(event_time, '%H:00', 'Asia/Kolkata') AS hour,
-      daemon AS vendor,
-      count() AS count
+    SELECT
+      toHour(event_time) AS hour,
+      daemon,
+      count() AS denial_count
     FROM flexlm_logs
-    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+    WHERE toDate(event_time) = today()
       AND operation = 'DENIED'
-    GROUP BY hour, vendor
+    GROUP BY hour, daemon
     ORDER BY hour ASC
   `;
 
@@ -237,32 +316,34 @@ const getDenialPageData = async () => {
     query: hourlyQuery,
     format: "JSONEachRow",
   });
+  const hourlyRaw = await hourlyResult.json();
 
-  const hourlyDataRaw = await hourlyResult.json(); // <- make sure you await
+  // Transform to format: [{ hour: "00:00", cadence: 5, altair: 3, synopsys: 2 }, ...]
+  const hourlyData = Array.from({ length: 24 }, (_, i) => {
+    const hourStr = `${String(i).padStart(2, "0")}:00`;
+    const hourRecords = hourlyRaw.filter((h) => h.hour === i);
 
-  const hours = Array.from({ length: 24 }, (_, i) => {
-    const label = `${String(i).padStart(2, "0")}:00`;
-    const perVendor = hourlyDataRaw.filter((row) => row.hour === label);
-    const vendorCounts = Object.fromEntries(
-      perVendor.map((r) => [r.vendor.toLowerCase(), r.count]),
-    );
+    const result = { hour: hourStr };
+    hourRecords.forEach((record) => {
+      result[record.daemon.toLowerCase()] = Number(record.denial_count);
+    });
 
-    return {
-      hour: label,
-      cadence: vendorCounts.cadence || 0,
-      altair: vendorCounts.altair || 0,
-      synopsys: vendorCounts.synopsys || 0,
-    };
+    // Ensure all vendors have a value (0 if not present)
+    result.cadence = result.cadence || 0;
+    result.altair = result.altair || 0;
+    result.synopsys = result.synopsys || 0;
+
+    return result;
   });
 
-  // Table of features with denials
+  // Table data: denials by feature and vendor
   const tableQuery = `
     SELECT 
       feature,
       daemon AS vendor,
       count() AS denied
     FROM flexlm_logs
-    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+    WHERE toDate(event_time) = today()
       AND operation = 'DENIED'
     GROUP BY feature, vendor
     ORDER BY denied DESC
@@ -273,14 +354,20 @@ const getDenialPageData = async () => {
     query: tableQuery,
     format: "JSONEachRow",
   });
-
   const tableData = await tableResult.json();
 
+  // Ensure numbers are properly formatted
+  const formattedTableData = tableData.map((row) => ({
+    feature: row.feature,
+    vendor: row.vendor.toLowerCase(),
+    denied: Number(row.denied),
+  }));
+
   return {
-    hourlyData: hours,
-    tableData,
+    hourlyData,
+    tableData: formattedTableData,
   };
-};
+}
 
 //Live Page
 async function getLivePageData() {
@@ -289,12 +376,15 @@ async function getLivePageData() {
     SELECT 
       toHour(event_time) AS hour,
       daemon AS vendor,
-      count(DISTINCT feature) AS feature_count
+      count(DISTINCT feature) AS feature_count,
+    SUM(multiIf(operation = 'OUT',1,operation ='IN', -1,0)) as cnt
     FROM flexlm_logs
     WHERE toDate(event_time) = today()
-      AND operation = 'IN'
+      AND operation in ('OUT','IN')
     GROUP BY hour, vendor
+    having cnt>0
     ORDER BY hour ASC
+
   `;
 
   const hourlyResult = await client.query({
@@ -330,13 +420,14 @@ async function getLivePageData() {
       feature,
       daemon AS vendor,
       argMax(licenses_total, event_time) AS total,
-      argMax(licenses_used, event_time) AS active,
+      sum(multiIf(operation='OUT',1,operation='IN',-1,0)) AS active,
       groupArray(DISTINCT user) AS users
     FROM flexlm_logs
     WHERE toDate(event_time) = today()
-      AND operation = 'IN'
+      AND operation in ('IN','OUT')
       AND licenses_total IS NOT NULL
     GROUP BY feature, daemon
+having active > 0
     ORDER BY active DESC
   `;
 
@@ -365,10 +456,10 @@ async function getLivePageData() {
 async function getWaitPageData() {
   const hourlyWaitQuery = `
     SELECT
-      toHour(event_time, 'Asia/Kolkata') AS hour,
+      toHour(event_time) AS hour,
       count() AS waitCount
     FROM flexlm_logs
-    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+    WHERE toDate(event_time) = toDate(now())
       AND operation = 'QUEUED'
     GROUP BY hour
     ORDER BY hour ASC
@@ -378,50 +469,153 @@ async function getWaitPageData() {
     query: hourlyWaitQuery,
     format: "JSONEachRow",
   });
-
   const hourlyRaw = await hourlyResult.json();
 
   const hourlyData = Array.from({ length: 24 }, (_, i) => {
     const hourData = hourlyRaw.find((h) => h.hour === i);
     return {
       hour: `${String(i).padStart(2, "0")}:00`,
-      waitCount: hourData ? hourData.waitCount : 0,
+      waitCount: hourData ? Number(hourData.waitCount) : 0,
     };
   });
 
-  const currentWaitQuery = `
+  // Query 1: Users still waiting (QUEUED but NOT in OUT)
+  const stillWaitingQuery = `
+SELECT
+    feature,
+    user,
+    daemon AS vendor,
+    min(event_time) AS first_denial,
+    max(event_time) AS last_denial,
+    count() AS denial_count
+FROM flexlm_logs
+WHERE toDate(event_time) = toDate(now())
+  AND operation = 'QUEUED'
+  AND (feature, user, daemon) NOT IN (
+      SELECT feature, user, daemon
+      FROM flexlm_logs
+      WHERE toDate(event_time) = toDate(now())
+        AND operation = 'OUT'
+  )
+GROUP BY feature, user, daemon
+ORDER BY last_denial DESC;
+`;
+
+  // Query 2: Users who got the feature (QUEUED and then OUT)
+  const grantedAfterQueueQuery = `
+WITH queued AS (
     SELECT
-      feature,
-      user,
-      daemon AS vendor,
-      min(event_time) AS first_denial,
-      max(event_time) AS last_denial,
-      count() AS denial_count
+        feature,
+        user,
+        daemon,
+        min(event_time) AS first_queue,
+        max(event_time) AS last_queue,
+        count() AS denial_count
     FROM flexlm_logs
-    WHERE toDate(event_time, 'Asia/Kolkata') = toDate(now(), 'Asia/Kolkata')
+    WHERE toDate(event_time) = toDate(now())
       AND operation = 'QUEUED'
     GROUP BY feature, user, daemon
-    ORDER BY last_denial DESC
-    LIMIT 50
-  `;
+),
+granted AS (
+    SELECT
+        feature,
+        user,
+        daemon,
+        max(event_time) AS granted_time
+    FROM flexlm_logs
+    WHERE toDate(event_time) = toDate(now())
+      AND operation = 'OUT'
+    GROUP BY feature, user, daemon
+)
+SELECT
+    q.feature,
+    q.user,
+    q.daemon AS vendor,
+    q.first_queue AS first_denial,
+    q.last_queue AS last_denial,
+    q.denial_count,
+    g.granted_time
+FROM queued q
+INNER JOIN granted g
+    ON q.feature = g.feature
+    AND q.user = g.user
+    AND q.daemon = g.daemon
+ORDER BY q.last_queue DESC;
+`;
 
-  const currentWaitResult = await client.query({
-    query: currentWaitQuery,
-    format: "JSONEachRow",
+  // Execute both queries
+  const [stillWaitingResult, grantedResult] = await Promise.all([
+    client.query({ query: stillWaitingQuery, format: "JSONEachRow" }),
+    client.query({ query: grantedAfterQueueQuery, format: "JSONEachRow" }),
+  ]);
+
+  const stillWaitingData = await stillWaitingResult.json();
+  const grantedData = await grantedResult.json();
+
+  // Get current time for calculating ongoing wait duration
+  const now = new Date();
+
+  // Parse waiting users - FIXED: Calculate duration from first denial to NOW
+  const waitingQueue = stillWaitingData.map((r) => {
+    const firstDenial = new Date(r.first_denial);
+
+    // For users still waiting, calculate time from first denial to NOW
+    const waitTime = Math.round((now - firstDenial) / 60000);
+
+    // Format duration nicely
+    let durationStr;
+    if (waitTime < 1) {
+      durationStr = "< 1 min";
+    } else if (waitTime < 60) {
+      durationStr = `${waitTime} min`;
+    } else {
+      const hours = Math.floor(waitTime / 60);
+      const minutes = waitTime % 60;
+      durationStr = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+
+    return {
+      feature: r.feature,
+      user: r.user,
+      vendor: r.vendor,
+      denialCount: Number(r.denial_count),
+      duration: durationStr,
+      status: "Waiting",
+    };
   });
 
-  const currentWait = await currentWaitResult.json();
+  // Parse granted users - Calculate duration from first denial to when granted
+  const grantedQueue = grantedData.map((r) => {
+    const firstDenial = new Date(r.first_denial);
+    const grantedTime = new Date(r.granted_time);
 
-  const waitQueue = currentWait.map((r) => ({
-    feature: r.feature,
-    user: r.user,
-    vendor: r.vendor,
-    denialCount: r.denial_count,
-    duration: `${Math.round(
-      (new Date(r.last_denial) - new Date(r.first_denial)) / 60000,
-    )} min`,
-    status: "Waiting",
-  }));
+    // Calculate total wait time
+    const waitTime = Math.round((grantedTime - firstDenial) / 60000);
+
+    // Format duration nicely
+    let durationStr;
+    if (waitTime < 1) {
+      durationStr = "< 1 min";
+    } else if (waitTime < 60) {
+      durationStr = `${waitTime} min`;
+    } else {
+      const hours = Math.floor(waitTime / 60);
+      const minutes = waitTime % 60;
+      durationStr = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+
+    return {
+      feature: r.feature,
+      user: r.user,
+      vendor: r.vendor,
+      denialCount: Number(r.denial_count),
+      duration: durationStr,
+      status: "GIVEN FEATURE",
+    };
+  });
+
+  // Combine both arrays
+  const waitQueue = [...grantedQueue, ...waitingQueue];
 
   return { hourlyData, waitQueue };
 }
