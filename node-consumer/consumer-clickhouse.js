@@ -23,7 +23,7 @@ const CONFIG = {
   ],
   batch: {
     maxSize: 100,
-    maxWaitMs: 2000,
+    maxWaitMs: 1000,
   },
 };
 
@@ -148,7 +148,7 @@ function transformMessage(kafkaMessage, topic, partition, offset) {
         operation,
       ),
     };
-
+    console.log(data);
     return data;
   } catch (error) {
     console.error("Error transforming message:", error.message);

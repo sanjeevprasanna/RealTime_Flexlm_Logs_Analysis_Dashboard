@@ -42,7 +42,7 @@ const EnhancedTooltipContent = ({ active, payload, label }) => {
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-lg shadow-emerald-500/50"></div>
           <span className="text-white text-base font-bold">
-            {payload[0].value.toLocaleString()} users
+            {payload[0].value.toLocaleString()}
           </span>
         </div>
       </div>

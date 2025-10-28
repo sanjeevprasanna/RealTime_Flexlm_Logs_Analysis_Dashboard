@@ -3,17 +3,20 @@ const client = require("../db/clickhouseClient");
 async function getDailyActiveCountsLast30Days() {
   const result = await client.query({
     query: `
-      WITH dates AS (
-        SELECT toDate(today() - number) AS date
-        FROM numbers(30)
-      )
-      SELECT
-        d.date,
-        coalesce(sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END), 0) AS active_count
-      FROM dates d
-      LEFT JOIN flexlm_logs l ON toDate(l.event_time) = d.date
-      GROUP BY d.date
-      ORDER BY d.date ASC
+
+WITH dates AS (
+    SELECT toDate(today() - number) AS date
+    FROM numbers(30)
+)
+SELECT
+    d.date,
+    countIf(l.operation = 'OUT') AS active_count
+FROM dates AS d
+LEFT JOIN flexlm_logs AS l
+    ON toDate(l.event_time) = d.date
+GROUP BY d.date
+ORDER BY d.date ASC;
+
     `,
     format: "JSONEachRow",
   });
@@ -28,11 +31,12 @@ async function getActiveVendors() {
         sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END) AS active_count
       FROM flexlm_logs
       GROUP BY daemon
+ HAVING active_count > 0
       ORDER BY active_count DESC
+     
     `,
     format: "JSONEachRow",
   });
-  console.log("ho");
   return await query.json();
 }
 
@@ -41,12 +45,12 @@ async function getSummaryHomePage() {
   WITH
   -- Current active licenses (cumulative from all time)
   active_now AS (
-    SELECT 
-      sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS cnt
-    FROM flexlm_logs
-    WHERE toDate(event_time) <= today()
-      AND operation IN ('OUT', 'IN')
-  ),
+   SELECT 
+
+  sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS cnt
+FROM flexlm_logs
+WHERE toDate(event_time) = today()
+  AND operation IN ('OUT', 'IN')  having cnt>0),
   
   -- Active licenses at end of yesterday
   active_yesterday_eod AS (
