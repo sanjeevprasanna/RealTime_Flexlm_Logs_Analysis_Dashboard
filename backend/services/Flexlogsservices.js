@@ -26,14 +26,17 @@ ORDER BY d.date ASC;
 async function getActiveVendors() {
   const query = await client.query({
     query: `
-      SELECT 
-        daemon,
-        sum(CASE WHEN operation = 'IN' THEN -1 WHEN operation = 'OUT' THEN 1 ELSE 0 END) AS active_count
-      FROM flexlm_logs
-      GROUP BY daemon
- HAVING active_count > 0
-      ORDER BY active_count DESC
-     
+
+SELECT
+    daemon,
+    sum(multiIf(operation = 'IN', -1, operation = 'OUT', 1, 0)) AS active_count
+FROM flexlm_logs
+WHERE toDate(event_time) = today()
+GROUP BY daemon
+HAVING active_count > 0
+ORDER BY active_count DESC
+
+
     `,
     format: "JSONEachRow",
   });
@@ -69,7 +72,7 @@ WHERE toDate(event_time) = today()
         daemon,
         sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS net
       FROM flexlm_logs
-      WHERE toDate(event_time) <= today()
+      WHERE toDate(event_time) = today()
         AND operation IN ('OUT', 'IN')
       GROUP BY daemon
       HAVING net > 0
@@ -110,10 +113,11 @@ WHERE toDate(event_time) = today()
     SELECT 
       feature,
       daemon,
-      argMax(licenses_total, event_time) AS total
+       sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS total
     FROM flexlm_logs
-    WHERE toDate(event_time) <= today()
+    WHERE toDate(event_time) = today()
     GROUP BY feature, daemon
+    having total>0
   ),
   
   -- Currently used licenses (only active checkouts)
@@ -121,7 +125,7 @@ WHERE toDate(event_time) = today()
     SELECT 
       sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS used
     FROM flexlm_logs
-    WHERE toDate(event_time) <= today()
+    WHERE toDate(event_time) = today()
       AND operation IN ('OUT', 'IN')
     GROUP BY feature, daemon
     HAVING used > 0

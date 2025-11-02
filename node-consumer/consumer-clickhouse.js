@@ -23,7 +23,7 @@ const CONFIG = {
   ],
   batch: {
     maxSize: 100,
-    maxWaitMs: 1000,
+    maxWaitMs: 10,
   },
 };
 
@@ -59,41 +59,44 @@ async function revokeAllLicenses(eventTime) {
     console.log(` Revoking all licenses due to system event at ${eventTime}`);
 
     const query = `
-      INSERT INTO flexlm_logs 
-      SELECT 
-        '${eventTime}' as event_time,
-        now() as insert_time,
-        daemon,
-        'IN' as operation,
-        feature,
-        version,
-        user,
-        server,
-        handle,
-        0 as licenses_used,
-        licenses_total,
-        'Auto-revoked due to system restart/reread' as raw_message,
-        kafka_topic,
-        kafka_partition,
-        kafka_offset
-      FROM (
-        SELECT 
-          daemon,
-          feature,
-          version,
-          user,
-          server,
-          handle,
-          argMax(licenses_total, event_time) as licenses_total,
-          argMax(kafka_topic, event_time) as kafka_topic,
-          argMax(kafka_partition, event_time) as kafka_partition,
-          argMax(kafka_offset, event_time) as kafka_offset,
-          sum(CASE WHEN operation = 'OUT' THEN 1 WHEN operation = 'IN' THEN -1 ELSE 0 END) as net_count
-        FROM flexlm_logs
-        WHERE operation IN ('OUT', 'IN')
-        GROUP BY daemon, feature, version, user, server, handle
-        HAVING net_count > 0
-      )
+
+INSERT INTO flexlm_logs 
+SELECT 
+  '${eventTime}' AS event_time,
+  now() AS insert_time,
+  daemon,
+  'IN' AS operation,
+  feature,
+  version,
+  user,
+  server,
+  handle,
+  0 AS licenses_used,
+  licenses_total,
+  'Auto-revoked due to system restart/reread' AS raw_message,
+  kafka_topic,
+  kafka_partition,
+  kafka_offset
+FROM (
+  SELECT 
+    daemon,
+    feature,
+    version,
+    user,
+    server,
+    handle,
+    argMax(licenses_total, event_time) AS licenses_total,
+    argMax(kafka_topic, event_time) AS kafka_topic,
+    argMax(kafka_partition, event_time) AS kafka_partition,
+    argMax(kafka_offset, event_time) AS kafka_offset,
+    sum(CASE WHEN operation = 'OUT' THEN 1 WHEN operation = 'IN' THEN -1 ELSE 0 END) AS net_count
+  FROM flexlm_logs
+  WHERE operation IN ('OUT', 'IN')
+  GROUP BY daemon, feature, version, user, server, handle
+  HAVING net_count > 0
+)
+ARRAY JOIN range(net_count)
+
     `;
 
     await clickhouse.command({ query });
@@ -125,7 +128,7 @@ function transformMessage(kafkaMessage, topic, partition, offset) {
       const istNow = new Date(now.getTime());
       eventTime = istNow.toISOString().slice(0, 19).replace("T", " ");
     }
-
+    console.log(eventTime);
     const operation = value.operation || "N/A";
     const data = {
       event_time: eventTime,
@@ -203,7 +206,7 @@ async function insertBatch() {
 
     console.log(
       `Inserted: ${batchToInsert.length} rows ` +
-      `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
+        `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
     );
   } catch (error) {
     console.error("Error inserting batch:", error.message);
@@ -283,9 +286,9 @@ process.on("SIGTERM", shutdown);
 setInterval(() => {
   console.log(
     `Metrics: Processed=${metrics.messagesProcessed}, ` +
-    `Batches=${metrics.batchesInserted}, ` +
-    `Errors=${metrics.errors}, ` +
-    `Batch Size=${batch.length}`,
+      `Batches=${metrics.batchesInserted}, ` +
+      `Errors=${metrics.errors}, ` +
+      `Batch Size=${batch.length}`,
   );
 }, 30000);
 

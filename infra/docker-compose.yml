@@ -7,7 +7,7 @@ services:
       - "9092:9092"
       - "9093:9093"
     environment:
-      # KRaft mode settings
+    
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_NODE_ID: 1
       KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
@@ -18,7 +18,7 @@ services:
       KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
-      # For simplicity in local dev
+    
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -31,8 +31,8 @@ services:
     image: clickhouse/clickhouse-server:24.3
     container_name: clickhouse
     ports:
-      - "8123:8123" # HTTP interface
-      - "9000:9000" # Native TCP interface
+      - "8123:8123" # HTTP 
+      - "9000:9000" # TCP
     environment:
       CLICKHOUSE_DB: flexlm
       CLICKHOUSE_USER: admin
