@@ -327,7 +327,7 @@ const LivePage = () => {
                       >
                         {vendor === "all"
                           ? "All Vendors"
-                          : vendor.charAt(0).toUpperCase() + vendor.slice(1)}
+                          : vendor.charAt(0) + vendor.slice(1)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -384,12 +384,13 @@ const LivePage = () => {
                           <td className="py-3 px-4">
                             <Badge
                               variant="outline"
-                              className={`font-medium ${row.vendor === "cadence"
+                              className={`font-medium ${
+                                row.vendor === "cadence"
                                   ? "text-green-400 border-green-400/30 bg-green-400/5"
                                   : row.vendor === "altair"
                                     ? "text-yellow-400 border-yellow-400/30 bg-yellow-400/5"
                                     : "text-purple-400 border-purple-400/30 bg-purple-400/5"
-                                }`}
+                              }`}
                             >
                               {row.vendor}
                             </Badge>
@@ -404,10 +405,11 @@ const LivePage = () => {
                           </td>
                           <td className="py-3 px-4">
                             <span
-                              className={`font-semibold ${row.available > 0
+                              className={`font-semibold ${
+                                row.available > 0
                                   ? "text-green-400"
                                   : "text-red-400"
-                                }`}
+                              }`}
                             >
                               {row.available}
                             </span>

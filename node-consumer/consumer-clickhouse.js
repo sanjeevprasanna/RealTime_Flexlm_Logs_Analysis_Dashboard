@@ -23,7 +23,7 @@ const CONFIG = {
   ],
   batch: {
     maxSize: 100,
-    maxWaitMs: 10,
+    maxWaitMs: 1000,
   },
 };
 
@@ -143,7 +143,7 @@ function transformMessage(kafkaMessage, topic, partition, offset) {
       licenses_total: value.licenses_total
         ? parseInt(value.licenses_total)
         : null,
-      raw_message: value.log || kafkaMessage.value.toString(),
+      raw_message: value.log || value.message || kafkaMessage.value.toString(),
       kafka_topic: topic,
       kafka_partition: partition,
       kafka_offset: offset,
@@ -184,20 +184,22 @@ async function insertBatch() {
     }
 
     for (const event of systemEvents) {
-      if (
-        event.operation === "REREAD" ||
-        event.operation === "SHUTDOWN" ||
-        event.operation === "START"
-      ) {
-        await clickhouse.insert({
-          table: "flexlm_logs",
-          values: [{ ...event, is_system_event: undefined }],
-          format: "JSONEachRow",
-        });
+      await clickhouse.insert({
+        table: "flexlm_logs",
+        values: [{ ...event, is_system_event: undefined }],
+        format: "JSONEachRow",
+      });
 
-        if (event.operation === "REREAD" || event.operation === "SHUTDOWN") {
-          await revokeAllLicenses(event.event_time);
-        }
+      if (
+        event.daemon === "lmgrd" &&
+        (event.operation === "REREAD" ||
+          event.operation === "SHUTDOWN" ||
+          event.operation === "SERVER_EXIT")
+      ) {
+        console.log(
+          `Revoking licenses for ${event.operation} at ${event.event_time}`,
+        );
+        await revokeAllLicenses(event.event_time);
       }
     }
 
@@ -206,10 +208,12 @@ async function insertBatch() {
 
     console.log(
       `Inserted: ${batchToInsert.length} rows ` +
+        `(${systemEvents.length} system, ${normalEvents.length} normal) ` +
         `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
     );
   } catch (error) {
     console.error("Error inserting batch:", error.message);
+    console.error(error);
     metrics.errors++;
     batch.push(...batchToInsert);
   }

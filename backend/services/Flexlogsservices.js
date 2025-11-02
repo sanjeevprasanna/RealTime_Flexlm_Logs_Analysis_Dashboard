@@ -353,16 +353,30 @@ async function getDenialPageData() {
 
   // Table data: denials by feature and vendor
   const tableQuery = `
-    SELECT 
-      feature,
-      daemon AS vendor,
-      count() AS denied
-    FROM flexlm_logs
-    WHERE toDate(event_time) = today()
-      AND operation = 'DENIED'
-    GROUP BY feature, vendor
-    ORDER BY denied DESC
-    LIMIT 50
+ 
+WITH
+(
+  SELECT max(event_time)
+  FROM flexlm_logs
+  WHERE operation IN ('REREAD', 'SERVER_EXIT', 'EXIT', 'START')
+) AS last_restart
+
+SELECT
+  feature,
+  daemon AS vendor,
+  count() AS denied
+FROM flexlm_logs
+WHERE
+  toDate(event_time) = today()
+  AND operation = 'DENIED'
+  AND event_time > last_restart
+GROUP BY
+  feature,
+  vendor
+ORDER BY
+  denied DESC;
+
+
   `;
 
   const tableResult = await client.query({
@@ -397,7 +411,7 @@ async function getLivePageData() {
     WHERE toDate(event_time) = today()
       AND operation in ('OUT','IN')
     GROUP BY hour, vendor
-    having cnt>0
+    
     ORDER BY hour ASC
 
   `;
@@ -431,19 +445,21 @@ async function getLivePageData() {
 
   // Get current feature usage with active counts
   const featuresQuery = `
-    SELECT 
-      feature,
-      daemon AS vendor,
-      argMax(licenses_total, event_time) AS total,
-      sum(multiIf(operation='OUT',1,operation='IN',-1,0)) AS active,
-      groupArray(DISTINCT user) AS users
-    FROM flexlm_logs
-    WHERE toDate(event_time) = today()
-      AND operation in ('IN','OUT')
-      AND licenses_total IS NOT NULL
-    GROUP BY feature, daemon
-having active > 0
-    ORDER BY active DESC
+ 
+SELECT
+    feature,
+    daemon as vendor,
+    argMax(licenses_total, event_time) AS total,
+    SUM(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS used,
+    groupArrayDistinct(user) AS users
+FROM flexlm_logs
+WHERE toDate(event_time) = today()
+  AND operation IN ('OUT', 'IN')
+GROUP BY feature, daemon
+HAVING used > 0
+ORDER BY daemon, feature;
+
+
   `;
 
   const featuresResult = await client.query({
