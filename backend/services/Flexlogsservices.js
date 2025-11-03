@@ -20,7 +20,31 @@ ORDER BY d.date ASC;
     `,
     format: "JSONEachRow",
   });
-  return await result.json();
+
+  const last7result = await client.query({
+    query: `
+
+WITH dates AS (
+    SELECT toDate(today() - number) AS date
+    FROM numbers(7)
+)
+SELECT
+    d.date,
+    countIf(l.operation = 'OUT') AS active_count
+FROM dates AS d
+LEFT JOIN flexlm_logs AS l
+    ON toDate(l.event_time) = d.date
+GROUP BY d.date
+ORDER BY d.date ASC;
+
+    `,
+    format: "JSONEachRow",
+  });
+
+  return {
+    result: await result.json(),
+    last7result: await last7result.json(),
+  };
 }
 
 async function getActiveVendors() {
@@ -651,6 +675,38 @@ ORDER BY q.last_queue DESC;
   return { hourlyData, waitQueue };
 }
 
+//Top 10 Users
+
+async function getTopUsers() {
+  const queryTop = `
+    SELECT user, count() AS cnt
+    FROM flexlm_logs
+    WHERE event_time > now() - INTERVAL 30 DAY AND operation = 'OUT'
+    GROUP BY user
+    ORDER BY cnt DESC
+    LIMIT 10
+  `;
+
+  const queryBottom = `
+    SELECT user, count() AS cnt
+    FROM flexlm_logs
+    WHERE event_time > now() - INTERVAL 30 DAY AND operation = 'OUT'
+    GROUP BY user
+    ORDER BY cnt ASC
+    LIMIT 10
+  `;
+
+  const [dataTop, dataBottom] = await Promise.all([
+    client.query({ query: queryTop, format: "JSONEachRow" }),
+    client.query({ query: queryBottom, format: "JSONEachRow" }),
+  ]);
+
+  const topUsers = await dataTop.json();
+  const bottomUsers = await dataBottom.json();
+
+  return { topUsers, bottomUsers };
+}
+
 module.exports = {
   getDailyActiveCountsLast30Days,
   getActiveVendors,
@@ -659,4 +715,5 @@ module.exports = {
   getDenialPageData,
   getWaitPageData,
   getLivePageData,
+  getTopUsers,
 };

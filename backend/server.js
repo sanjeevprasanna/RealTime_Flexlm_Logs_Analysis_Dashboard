@@ -10,6 +10,7 @@ const {
   getDenialPageData,
   getLivePageData,
   getWaitPageData,
+  getTopUsers,
 } = require("./services/Flexlogsservices.js");
 
 const app = express();
@@ -84,6 +85,16 @@ app.get("/services/getDenialPageData", async (req, res) => {
     res.json(data);
   } catch (er) {
     console.error("Error fetching denial page data", er);
+  }
+});
+
+//Top 10 users Home Page
+app.get("/services/getTopUsers", async (req, res) => {
+  try {
+    const data = await getTopUsers();
+    res.json(data);
+  } catch (e) {
+    console.log("Error fetching top 10 users list", e);
   }
 });
 

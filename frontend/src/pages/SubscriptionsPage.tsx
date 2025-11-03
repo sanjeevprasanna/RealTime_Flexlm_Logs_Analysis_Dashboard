@@ -87,23 +87,23 @@ useEffect(() => {
                 Hourly usage pattern for {dayjs().format("MMMM D, YYYY")}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              {["24h"].map((range) => (
-                <Button
-                  key={range}
-                  size="sm"
-                  variant={timeRange === range ? "default" : "outline"}
-                  onClick={() => setTimeRange(range)}
-                  className={
-                    timeRange === range
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700"
-                  }
-                >
-                  { "Today" }
-                </Button>
-              ))}
-            </div>
+            {/* <div className="flex gap-2"> */}
+            {/*   {["24h"].map((range) => ( */}
+            {/*     <Button */}
+            {/*       key={range} */}
+            {/*       size="sm" */}
+            {/*       variant={timeRange === range ? "default" : "outline"} */}
+            {/*       onClick={() => setTimeRange(range)} */}
+            {/*       className={ */}
+            {/*         timeRange === range */}
+            {/*           ? "bg-blue-600 text-white" */}
+            {/*           : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700" */}
+            {/*       } */}
+            {/*     > */}
+            {/*       { "Today" } */}
+            {/*     </Button> */}
+            {/*   ))} */}
+            {/* </div> */}
           </CardHeader>
 
           <CardContent>

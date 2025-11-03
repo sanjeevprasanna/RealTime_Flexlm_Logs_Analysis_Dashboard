@@ -1,8 +1,10 @@
 import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts";
 
+import { create } from "zustand";
+
 import { Activity, Users, Calendar, Database } from "lucide-react";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -25,6 +27,20 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { TrendingUp, BarChart3 } from "lucide-react";
+import UserUsageTables from "@/components/UserUsageTable";
+
+//State management for days selection <-Zusrtand></-Zusrtand>
+
+export const useDayState = create((set) => ({
+  days: 30,
+  setDays: (days) => set({ days }),
+
+  topUsers: [],
+  setTopUsers: (topUsers) => set({ topUsers }),
+
+  bottomUsers: [],
+  setBottomUsers: (bottomUsers) => set({ bottomUsers }),
+}));
 
 // Enhanced Tooltip Component
 const EnhancedTooltipContent = ({ active, payload, label }) => {
@@ -119,7 +135,7 @@ const GradientBarShape = (props) => {
 // Main Component
 const BarChartShad = ({ data }) => {
   const [activeChart, setActiveChart] = React.useState("active_count");
-  const [viewMode, setViewMode] = React.useState("bars"); // "bars" or "trend"
+  const [viewMode, setViewMode] = React.useState("trend"); // "bars" or "trend"
 
   const chartConfig = {
     active_count: {
@@ -148,13 +164,13 @@ const BarChartShad = ({ data }) => {
 
     return { average, trendPercentage, isPositive };
   }, [data, total]);
-
+  const { days, setDays } = useDayState();
   return (
     <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 h-full shadow-2xl">
       <CardHeader className="flex flex-col items-stretch border-b border-gray-700/50 !p-0 sm:flex-row">
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 pt-5 pb-4 sm:!py-6">
           <CardTitle className="text-white text-xl font-semibold tracking-tight">
-            License Usage- Last 30 Days
+            License Usage Graph
           </CardTitle>
           <CardDescription className="text-gray-400 text-sm flex items-center gap-2"></CardDescription>
         </div>
@@ -174,29 +190,37 @@ const BarChartShad = ({ data }) => {
         </div>
       </CardHeader>
       <CardContent className="px-4 sm:p-6 pt-6">
-        {/* <div className="flex justify-end mb-3 gap-2"> */}
-        {/*   <button */}
-        {/*     onClick={() => setViewMode("bars")} */}
-        {/*     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === "bars" */}
-        {/*         ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40" */}
-        {/*         : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60" */}
-        {/*       }`} */}
-        {/*   > */}
-        {/*     <BarChart3 className="w-3.5 h-3.5 inline mr-1" /> */}
-        {/*     Bars */}
-        {/*   </button> */}
-        {/*   <button */}
-        {/*     onClick={() => setViewMode("trend")} */}
-        {/*     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === "trend" */}
-        {/*         ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40" */}
-        {/*         : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60" */}
-        {/*       }`} */}
-        {/*   > */}
-        {/*     <TrendingUp className="w-3.5 h-3.5 inline mr-1" /> */}
-        {/*     Trend */}
-        {/*   </button> */}
-        {/* </div> */}
-        {/**/}
+        <div className="flex justify-end mb-3 gap-2">
+          <button
+            onClick={() => {
+              setViewMode("trend");
+              setDays(30);
+              console.log("30");
+            }}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              days === 30
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60"
+            }`}
+          >
+            30 Days
+          </button>
+          <button
+            onClick={() => {
+              setViewMode("trend");
+              setDays(7);
+              console.log("7");
+            }}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              days == 7
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60"
+            }`}
+          >
+            7 Days
+          </button>
+        </div>
+
         <ChartContainer
           config={chartConfig}
           className="aspect-auto h-[320px] w-full"
@@ -439,21 +463,30 @@ const SummaryCard = ({
 // Main HomePage Component
 const HomePage = () => {
   const [dashboardData, setDashboardData] = React.useState([]);
+  const [dashboardData7, setDashboardData7] = React.useState([]);
   const [pieData, setPieData] = React.useState([]);
   const [summaryData, setSummaryData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
-
+  const { days, setDays, topUsers, setTopUsers, bottomUsers, setBottomUsers } =
+    useDayState();
   React.useEffect(() => {
     const fetchData = () => {
       Promise.all([
         fetch("http://localhost:3000/services/getDailyActiveCountsLast30Days")
           .then((res) => res.json())
           .then((data) => {
-            const temp = data.map((d) => ({
+            const temp30 = data.result.map((d) => ({
               ...d,
               active_count: Math.abs(Number(d.active_count)),
             }));
-            setDashboardData(temp);
+
+            const temp7 = data.last7result.map((d) => ({
+              ...d,
+              active_count: Math.abs(Number(d.active_count)),
+            }));
+
+            setDashboardData(temp30);
+            setDashboardData7(temp7);
           }),
 
         fetch("http://localhost:3000/services/getActiveVendors")
@@ -471,7 +504,15 @@ const HomePage = () => {
           .then((data) => {
             setSummaryData(data);
           }),
+        fetch("http://localhost:3000/services/getTopUsers")
+          .then((res) => res.json())
+          .then((data) => {
+            setTopUsers(data.topUsers);
+            console.log(data.bottomUsers);
+            setBottomUsers(data.bottomUsers);
+          }),
       ])
+
         .catch((err) => console.error("Error fetching data:", err))
         .finally(() => setLoading(false));
     };
@@ -499,7 +540,7 @@ const HomePage = () => {
       <div className="flex-1 p-6 overflow-auto">
         {/* Main Chart */}
         <div className="h-[560px] rounded-xl mb-6 transform hover:scale-[1.01] transition-transform duration-300">
-          <BarChartShad data={dashboardData} />
+          <BarChartShad data={days === 7 ? dashboardData7 : dashboardData} />
         </div>
 
         {/* Bottom Grid */}
@@ -564,6 +605,7 @@ const HomePage = () => {
             )}
           </div>
         </div>
+        <UserUsageTables />
       </div>
     </div>
   );
