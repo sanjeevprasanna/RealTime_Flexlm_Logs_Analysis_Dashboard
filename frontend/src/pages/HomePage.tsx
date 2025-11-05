@@ -3,8 +3,8 @@ import { LabelList, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { create } from "zustand";
 
 import { Activity, Users, Calendar, Database } from "lucide-react";
-
-import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import React, { useState, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -26,8 +26,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { TrendingUp, BarChart3 } from "lucide-react";
+import { TrendingUp, BarChart3, Download } from "lucide-react";
 import UserUsageTables from "@/components/UserUsageTable";
+
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas-pro";
+
+import html2pdf from "html2pdf.js";
 
 //State management for days selection <-Zusrtand></-Zusrtand>
 
@@ -169,7 +174,7 @@ const BarChartShad = ({ data }) => {
     <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 h-full shadow-2xl">
       <CardHeader className="flex flex-col items-stretch border-b border-gray-700/50 !p-0 sm:flex-row">
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 pt-5 pb-4 sm:!py-6">
-          <CardTitle className="text-white text-xl font-semibold tracking-tight">
+          <CardTitle className="text-white text-2xl font-semibold tracking-tight">
             License Usage Graph
           </CardTitle>
           <CardDescription className="text-gray-400 text-sm flex items-center gap-2"></CardDescription>
@@ -197,11 +202,10 @@ const BarChartShad = ({ data }) => {
               setDays(30);
               console.log("30");
             }}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-              days === 30
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${days === 30
                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                 : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60"
-            }`}
+              }`}
           >
             30 Days
           </button>
@@ -211,11 +215,10 @@ const BarChartShad = ({ data }) => {
               setDays(7);
               console.log("7");
             }}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-              days == 7
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${days == 7
                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                 : "bg-gray-800/40 text-gray-400 border border-gray-700/50 hover:bg-gray-800/60"
-            }`}
+              }`}
           >
             7 Days
           </button>
@@ -461,14 +464,19 @@ const SummaryCard = ({
 };
 
 // Main HomePage Component
+
 const HomePage = () => {
   const [dashboardData, setDashboardData] = React.useState([]);
   const [dashboardData7, setDashboardData7] = React.useState([]);
   const [pieData, setPieData] = React.useState([]);
   const [summaryData, setSummaryData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
-  const { days, setDays, topUsers, setTopUsers, bottomUsers, setBottomUsers } =
-    useDayState();
+  const [generating, setGenerating] = React.useState(false);
+
+  const contentRef = useRef(null);
+
+  const { days, setTopUsers, setBottomUsers } = useDayState();
+
   React.useEffect(() => {
     const fetchData = () => {
       Promise.all([
@@ -504,24 +512,77 @@ const HomePage = () => {
           .then((data) => {
             setSummaryData(data);
           }),
+
         fetch("http://localhost:3000/services/getTopUsers")
           .then((res) => res.json())
           .then((data) => {
             setTopUsers(data.topUsers);
-            console.log(data.bottomUsers);
             setBottomUsers(data.bottomUsers);
           }),
       ])
-
         .catch((err) => console.error("Error fetching data:", err))
         .finally(() => setLoading(false));
     };
-    fetchData(); // immediate fetch on mount
-    const interval = setInterval(fetchData, 30000); // fetch every 60 seconds
 
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [setTopUsers, setBottomUsers]);
 
+  const generatePDF = async () => {
+    if (!contentRef.current) return;
+
+    const element = contentRef.current;
+    setGenerating(true);
+
+    try {
+      // Capture entire dashboard at high resolution
+      const canvas = await html2canvas(element, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#030712",
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        scrollX: 0,
+        scrollY: 0,
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+
+      // Create landscape A4 PDF
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "pt",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+
+      // Calculate scaling ratio so image fits entirely inside the page
+      const scale = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+
+      const newWidth = imgWidth * scale;
+      const newHeight = imgHeight * scale;
+
+      // Center the image on the page
+      const xOffset = (pdfWidth - newWidth) / 2;
+      const yOffset = (pdfHeight - newHeight) / 2;
+
+      pdf.addImage(imgData, "JPEG", xOffset, yOffset, newWidth, newHeight);
+      pdf.save(
+        `flexlm-dashboard-${new Date().toISOString().split("T")[0]}.pdf`,
+      );
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("PDF generation failed. Check console for details.");
+    } finally {
+      setGenerating(false);
+    }
+  };
   if (loading) {
     return (
       <div className="flex flex-col h-screen w-screen bg-gray-950">
@@ -537,20 +598,16 @@ const HomePage = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-950">
-      <div className="flex-1 p-6 overflow-auto">
-        {/* Main Chart */}
-        <div className="h-[560px] rounded-xl mb-6 transform hover:scale-[1.01] transition-transform duration-300">
+      <div className="flex-1 p-6 overflow-auto" ref={contentRef}>
+        <div className="h-[560px] rounded-xl mb-6">
           <BarChartShad data={days === 7 ? dashboardData7 : dashboardData} />
         </div>
 
-        {/* Bottom Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pie Chart */}
-          <div className="rounded-xl transform hover:scale-[1.01] transition-transform duration-300">
+          <div className="rounded-xl">
             <PieChartShad data={pieData} />
           </div>
 
-          {/* Summary Cards */}
           <div className="rounded-xl">
             {summaryData ? (
               <div className="grid grid-cols-2 gap-4 h-full">
@@ -605,8 +662,27 @@ const HomePage = () => {
             )}
           </div>
         </div>
+
         <UserUsageTables />
       </div>
+
+      <Button
+        onClick={generatePDF}
+        disabled={generating}
+        className="fixed bottom-8 left-7 bg-emerald-500 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:bg-emerald-600 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+      >
+        {generating ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4" />
+            Download PDF
+          </>
+        )}
+      </Button>
     </div>
   );
 };

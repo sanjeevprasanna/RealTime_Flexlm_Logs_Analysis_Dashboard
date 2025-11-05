@@ -44,12 +44,12 @@ const UserUsageTable = ({ title, users, icon: Icon, trend = "up" }) => {
       <CardContent className="flex-1 overflow-hidden p-0">
         <div className="overflow-y-auto max-h-[400px] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
           <Table>
-            <TableHeader className="sticky top-0 bg-gray-800/90 backdrop-blur-sm z-10">
+            <TableHeader className=" bg-gray-800/90 backdrop-blur-sm z-10">
               <TableRow className="border-gray-700 hover:bg-transparent">
                 <TableHead className="text-gray-400 font-semibold w-12 text-center">
                   #
                 </TableHead>
-                <TableHead className="text-gray-400 font-semibold">
+                <TableHead className="text-gray-400  font-semibold">
                   User
                 </TableHead>
                 <TableHead className="text-gray-400 font-semibold text-right">

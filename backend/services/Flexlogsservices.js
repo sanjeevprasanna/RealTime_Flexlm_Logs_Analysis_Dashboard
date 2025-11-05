@@ -73,11 +73,10 @@ async function getSummaryHomePage() {
   -- Current active licenses (cumulative from all time)
   active_now AS (
    SELECT 
-
   sum(multiIf(operation = 'OUT', 1, operation = 'IN', -1, 0)) AS cnt
 FROM flexlm_logs
 WHERE toDate(event_time) = today()
-  AND operation IN ('OUT', 'IN')  having cnt>0),
+  AND operation IN ('OUT', 'IN')),
   
   -- Active licenses at end of yesterday
   active_yesterday_eod AS (

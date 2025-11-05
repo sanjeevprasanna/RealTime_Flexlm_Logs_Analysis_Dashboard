@@ -17,7 +17,7 @@ const Navbar = () => {
     { path: "/", label: "Home", icon: Home },
     { path: "/subscriptions", label: "Subscriptions", icon: Package },
     { path: "/live", label: "Live", icon: Activity },
-    { path: "/wait", label: "Wait", icon: Clock },
+    { path: "/wait", label: "Queued", icon: Clock },
     { path: "/denial", label: "Denial", icon: XCircle },
   ];
 
@@ -89,10 +89,11 @@ const Navbar = () => {
                     <Icon
                       className={`
                       w-4 h-4 transition-all duration-300
-                      ${active
+                      ${
+                        active
                           ? "text-gray-50-400"
                           : "text-gray-500 group-hover:text-gray-300"
-                        }
+                      }
                     `}
                     />
                     <span className="font-semibold tracking-wide">
