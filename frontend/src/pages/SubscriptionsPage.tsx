@@ -53,26 +53,28 @@ const SubscriptionsPage = () => {
   const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
   const [userActivityData, setUserActivityData] = useState<UserActivity[]>([]);
 
-useEffect(() => {
-  async function fetchData() {
-    try {
-      const res = await fetch(
-        "http://localhost:3000/services/getSubsPageData",
-      );
-      const data = await res.json();
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch(
+          "http://localhost:3000/services/getSubsPageData",
+        );
+        const data = await res.json();
 
-      setFeaturesData(data.features || []);
-      setHourlyData(data.hourlyData || []);
-      setUserActivityData(data.userActivity || []);
-    } catch (error) {
-      console.error("Failed to fetch subscriptions data:", error);
+        setFeaturesData(data.features || []);
+        setHourlyData(data.hourlyData || []);
+        setUserActivityData(data.userActivity || []);
+      } catch (error) {
+        console.error("Failed to fetch subscriptions data:", error);
+      }
     }
-  }
-  fetchData();
+    fetchData();
 
-  const interval = setInterval(() => { fetchData(); }, 30000);
-  return () => clearInterval(interval);
-}, []);
+    const interval = setInterval(() => {
+      fetchData();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
   return (
     <div className="flex flex-col max-h-screen scroll-auto bg-gray-950 text-gray-100">
       <main className="flex-1 p-6 space-y-6 overflow-auto">
@@ -81,7 +83,7 @@ useEffect(() => {
           <CardHeader className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
               <CardTitle className="text-white text-lg">
-              24-Hour Usage Overview  
+                24-Hour Usage Overview
               </CardTitle>
               <CardDescription className="text-gray-400">
                 Hourly usage pattern for {dayjs().format("MMMM D, YYYY")}
@@ -145,73 +147,76 @@ useEffect(() => {
           </CardContent>
         </Card>
 
-<Card className="bg-gray-900 border-gray-800">
-  <CardHeader>
-    <CardTitle className="text-white text-lg">
-      Feature Subscriptions
-    </CardTitle>
-    <CardDescription className="text-gray-400">
-      Current usage and availability overview
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    {/* Scrollable area for table */}
-    <div className="h-80 overflow-y-auto">
-      <Table className="min-w-full">
-        <TableHeader className="sticky top-0 bg-gray-900 z-10">
-          <TableRow className="border-gray-800">
-            <TableHead className="text-gray-300">Feature</TableHead>
-            <TableHead className="text-gray-300">Total</TableHead>
-            <TableHead className="text-gray-300">In Use</TableHead>
-            <TableHead className="text-gray-300">Available</TableHead>
-            <TableHead className="text-gray-300">Users</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {featuresData.map((row) => (
-            <TableRow
-              key={row.feature + row.daemon}
-              className="border-gray-800 hover:bg-gray-800/70"
-            >
-              <TableCell className="font-medium text-gray-200">
-                {row.feature}
-              </TableCell>
-              <TableCell className="text-white">{row.total}</TableCell>
-              <TableCell className="text-yellow-400">{row.inUse}</TableCell>
-              <TableCell className="text-green-400">
-                {row.total - row.inUse}
-              </TableCell>
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">
+              Feature Subscriptions
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Current usage and availability overview
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Scrollable area for table */}
+            <div className="h-auto overflow-y-auto">
+              <Table className="min-w-full">
+                <TableHeader className="sticky top-0 bg-gray-900 z-10">
+                  <TableRow className="border-gray-800">
+                    <TableHead className="text-gray-300 w-1/6">
+                      Feature
+                    </TableHead>
+                    {/* <TableHead className="text-gray-300">Total</TableHead> */}
+                    <TableHead className="text-gray-300 w-1/7">
+                      In Use
+                    </TableHead>
+                    {/* <TableHead className="text-gray-300">Available</TableHead> */}
+                    <TableHead className="text-gray-300 w-5/8">Users</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {featuresData.map((row) => (
+                    <TableRow
+                      key={row.feature + row.daemon}
+                      className="border-gray-800 hover:bg-gray-800/70"
+                    >
+                      <TableCell className="font-medium text-gray-200">
+                        {row.feature}
+                      </TableCell>
+                      {/* <TableCell className="text-white">{row.total}</TableCell> */}
+                      <TableCell className="text-yellow-400">
+                        {row.inUse}
+                      </TableCell>
+                      {/* <TableCell className="text-green-400"> */}
+                      {/*   {row.total - row.inUse} */}
+                      {/* </TableCell> */}
+                      {/* Horizontally scrollable user badges */}
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1 max-w-[300px]">
+                          {row.users.slice(0, row.users.length).map((user) => (
+                            <Badge
+                              key={user}
+                              className="bg-gray-700 text-gray-200 hover:bg-gray-600 whitespace-nowrap text-xs"
+                            >
+                              {user}
+                            </Badge>
+                          ))}
+                          {/* {row.users.length > 9 && ( */}
+                          {/*   <Badge className="bg-gray-700 text-gray-300 whitespace-nowrap text-xs"> */}
+                          {/*     +{row.users.length - 9} */}
+                          {/*   </Badge> */}
+                          {/* )} */}
+                        </div>
+                      </TableCell>{" "}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Horizontally scrollable user badges */}
-      <TableCell>
-  <div className="flex flex-wrap gap-1 max-w-[300px]">
-    {row.users.slice(0, row.users.length).map((user) => (
-      <Badge
-        key={user}
-        className="bg-gray-700 text-gray-200 hover:bg-gray-600 whitespace-nowrap text-xs"
-      >
-        {user}
-      </Badge>
-    ))}
-    {/* {row.users.length > 9 && ( */}
-    {/*   <Badge className="bg-gray-700 text-gray-300 whitespace-nowrap text-xs"> */}
-    {/*     +{row.users.length - 9} */}
-    {/*   </Badge> */}
-    {/* )} */}
-  </div>
-</TableCell>            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  </CardContent>
-</Card>
-
-
-
-
-            {/* User Activity */}
-        <Card className="  bg-gray-900 border-gray-800">
+        {/* User Activity */}
+        <Card className=" bg-gray-900 border-gray-800">
           <CardHeader>
             <CardTitle className="text-white text-lg">User Activity</CardTitle>
             <CardDescription className="text-gray-400">
@@ -219,57 +224,57 @@ useEffect(() => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-           <div className="h-96 overflow-y-auto">  
-          <Table>
-              <TableHeader>
-                <TableRow className="border-gray-800">
-                  <TableHead className="text-gray-300">User</TableHead>
-                  <TableHead className="text-gray-300">Feature</TableHead>
-                  <TableHead className="text-gray-300">Access Time</TableHead>
-                  <TableHead className="text-gray-300">Duration</TableHead>
-                </TableRow>
-              </TableHeader>
-            <TableBody>
-  {userActivityData
-    .filter((row) => Number(row.duration.substring(0, 1)) > 0)
-    .map((row, idx) => (
-      <TableRow
-        key={idx}
-        className="border-gray-800 hover:bg-gray-800/70"
-      >
-        <TableCell className="font-medium text-white">
-          {row.user}
-        </TableCell>
-        <TableCell>
-          <Badge
-            variant="outline"
-            className="border-gray-700 text-gray-200"
-          >
-            {row.feature}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-gray-200">
-          {row.accessTime}
-        </TableCell>
-        <TableCell
-          className={
-            Number(row.duration.substring(0, 1)) > 0
-              ? "text-green-400"
-              : "text-gray-200"
-          }
-        >
-          {row.duration}
-        </TableCell>
-      </TableRow>
-    ))}
-</TableBody>
-            </Table>
+            <div className="h-auto overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-gray-800">
+                    <TableHead className="text-gray-300">User</TableHead>
+                    <TableHead className="text-gray-300">Feature</TableHead>
+                    <TableHead className="text-gray-300">Access Time</TableHead>
+                    <TableHead className="text-gray-300">Duration</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {userActivityData
+                    .filter((row) => Number(row.duration.substring(0, 1)) > 0)
+                    .map((row, idx) => (
+                      <TableRow
+                        key={idx}
+                        className="border-gray-800 hover:bg-gray-800/70"
+                      >
+                        <TableCell className="font-medium text-white">
+                          {row.user}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className="border-gray-700 text-gray-200"
+                          >
+                            {row.feature}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-200">
+                          {row.accessTime}
+                        </TableCell>
+                        <TableCell
+                          className={
+                            Number(row.duration.substring(0, 1)) > 0
+                              ? "text-green-400"
+                              : "text-gray-200"
+                          }
+                        >
+                          {row.duration}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
       </main>
     </div>
   );
-}
+};
 
 export default SubscriptionsPage;

@@ -49,7 +49,7 @@ async function runProd() {
     await producer.send(batch);
   }
 
-  console.log("✅ 100 random FlexLM log messages sent successfully!");
+  console.log("100 random FlexLM log messages sent successfully!");
   await producer.disconnect();
 }
 

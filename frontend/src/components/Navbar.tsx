@@ -41,12 +41,12 @@ const Navbar = () => {
               <span className="text-lg font-bold text-white tracking-tight">
                 FlexLM
               </span>
-              <span className="text-lg font-light text-gray-400">|</span>
-              <span className="text-lg font-light text-gray-300">
+              <span className="text-lg font-light text-gray-300">|</span>
+              <span className="text-lg font-light text-gray-100">
                 Dashboard
               </span>
             </div>
-            <span className="text-[10px] text-gray-500 font-medium tracking-wider uppercase">
+            <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase">
               Enterprise License Monitoring
             </span>
           </div>
@@ -89,11 +89,10 @@ const Navbar = () => {
                     <Icon
                       className={`
                       w-4 h-4 transition-all duration-300
-                      ${
-                        active
+                      ${active
                           ? "text-gray-50-400"
                           : "text-gray-500 group-hover:text-gray-300"
-                      }
+                        }
                     `}
                     />
                     <span className="font-semibold tracking-wide">

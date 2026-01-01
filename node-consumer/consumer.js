@@ -25,10 +25,11 @@ const topics = [
 // Terminal colors for different topics
 const colors = {
   synopsys: "\x1b[36m", // Cyan
-  cadence: "\x1b[33m",  // Yellow
-  altair: "\x1b[35m",    // Magenta
-  lmgrd: "\x1b[32m",     // Green
-  reset: "\x1b[0m",      // Reset color
+  cadence: "\x1b[33m", // Yellow
+  altair: "\x1b[35m", // Magenta
+  lmgrd: "\x1b[32m", // Green
+  reset: "\x1b[0m", // Reset color
+  new_topic_color: "\x1b[69m",
 };
 
 // Main consumer function
@@ -61,9 +62,9 @@ const run = async () => {
 
           console.log(
             `${color}[${timestamp}] ${daemon.toUpperCase()}${colors.reset} | ` +
-            `${value.operation || "N/A"} | ` +
-            `${value.feature || "N/A"} | ` +
-            `${value.user || "N/A"}@${value.server || "N/A"}`
+              `${value.operation || "N/A"} | ` +
+              `${value.feature || "N/A"} | ` +
+              `${value.user || "N/A"}@${value.server || "N/A"}`,
           );
         } catch (err) {
           console.error("Error parsing message:", err.message);
@@ -90,4 +91,3 @@ process.on("SIGTERM", shutdown);
 
 // Start the consumer
 run().catch(console.error);
-

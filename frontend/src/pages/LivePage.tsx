@@ -361,12 +361,12 @@ const LivePage = () => {
                         <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">
                           Active
                         </th>
-                        <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">
-                          Total
-                        </th>
-                        <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">
-                          Available
-                        </th>
+                        {/* <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm"> */}
+                        {/*   Total */}
+                        {/* </th> */}
+                        {/* <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm"> */}
+                        {/*   Available */}
+                        {/* </th> */}
                         <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">
                           Users
                         </th>
@@ -384,36 +384,35 @@ const LivePage = () => {
                           <td className="py-3 px-4">
                             <Badge
                               variant="outline"
-                              className={`font-medium ${
-                                row.vendor === "cadence"
+                              className={`font-medium ${row.vendor === "cadence"
                                   ? "text-green-400 border-green-400/30 bg-green-400/5"
                                   : row.vendor === "altair"
                                     ? "text-yellow-400 border-yellow-400/30 bg-yellow-400/5"
                                     : "text-purple-400 border-purple-400/30 bg-purple-400/5"
-                              }`}
+                                }`}
                             >
                               {row.vendor}
                             </Badge>
                           </td>
                           <td className="py-3 px-4">
                             <span className="text-blue-400 font-semibold">
-                              {row.active}
+                              {row.users.length}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-gray-300 font-medium">
-                            {row.total}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`font-semibold ${
-                                row.available > 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }`}
-                            >
-                              {row.available}
-                            </span>
-                          </td>
+                          {/* <td className="py-3 px-4 text-gray-300 font-medium"> */}
+                          {/*   {row.total} */}
+                          {/* </td> */}
+                          {/* <td className="py-3 px-4"> */}
+                          {/*   <span */}
+                          {/*     className={`font-semibold ${ */}
+                          {/*       row.available > 0 */}
+                          {/*         ? "text-green-400" */}
+                          {/*         : "text-red-400" */}
+                          {/*     }`} */}
+                          {/*   > */}
+                          {/*     {row.available} */}
+                          {/*   </span> */}
+                          {/* </td> */}
                           <td className="py-3 px-4">
                             <div className="flex flex-wrap gap-1 max-w-[300px]">
                               {row.users

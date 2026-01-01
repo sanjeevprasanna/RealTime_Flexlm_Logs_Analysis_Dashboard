@@ -549,7 +549,7 @@ WHERE toDate(event_time) = toDate(now())
       SELECT feature, user, daemon
       FROM flexlm_logs
       WHERE toDate(event_time) = toDate(now())
-        AND operation = 'OUT'
+        AND operation = 'DEQUEUED'
   )
 GROUP BY feature, user, daemon
 ORDER BY last_denial DESC;

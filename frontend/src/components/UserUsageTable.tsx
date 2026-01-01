@@ -35,7 +35,7 @@ const UserUsageTable = ({ title, users, icon: Icon, trend = "up" }) => {
               {title}
             </CardTitle>
             <CardDescription className="text-gray-400 text-sm mt-1">
-              Total checkouts
+              (Last 30 Days)
             </CardDescription>
           </div>
         </div>

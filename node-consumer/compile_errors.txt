@@ -1,0 +1,2 @@
+ld: unknown file type in '/Users/sanjeevprasanna/projects/RealTimeLicenseMonitoringTool/node-consumer/consumer-clickhouse.js'
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)

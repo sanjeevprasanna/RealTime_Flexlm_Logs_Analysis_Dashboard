@@ -1,0 +1,4 @@
+# Add input values below
+# Example:
+# 5
+# 10

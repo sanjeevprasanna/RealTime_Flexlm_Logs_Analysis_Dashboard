@@ -1,13 +1,23 @@
 require("dotenv").config();
-
 const { Kafka } = require("kafkajs");
 const { createClient } = require("@clickhouse/client");
+const {
+  getRunningTopics,
+  createTopic,
+  currLen,
+  liveKafkaTopicsList,
+} = require("./services/kafka.js");
+
+const fs = require("fs");
+const NOTIFY_FILE = "/tmp/flexlm-new-topics.json";
+let lastCheck = Date.now();
 
 const CONFIG = {
   kafka: {
     clientId: "flexlm-consumer",
     brokers: ["localhost:9092"],
     groupId: "flexlm-consumer-group",
+    metadataMaxAge: 10000,
   },
   clickhouse: {
     host: process.env.CLICKHOUSE_HOST,
@@ -30,6 +40,7 @@ const CONFIG = {
 const kafka = new Kafka({
   clientId: CONFIG.kafka.clientId,
   brokers: CONFIG.kafka.brokers,
+  metadataMaxAge: 2000,
 });
 
 const consumer = kafka.consumer({
@@ -132,7 +143,7 @@ function transformMessage(kafkaMessage, topic, partition, offset) {
     const operation = value.operation || "N/A";
     const data = {
       event_time: eventTime,
-      daemon: value.daemon || "unknown",
+      daemon: value.daemon,
       operation: operation,
       feature: value.feature || "",
       version: value.version || "",
@@ -191,10 +202,10 @@ async function insertBatch() {
       });
 
       if (
-        event.daemon === "lmgrd" &&
-        (event.operation === "REREAD" ||
-          event.operation === "SHUTDOWN" ||
-          event.operation === "SERVER_EXIT")
+        //event.daemon === "lmgrd" &&
+        event.operation === "REREAD" ||
+        event.operation === "SHUTDOWN" ||
+        event.operation === "SERVER_EXIT"
       ) {
         console.log(
           `Revoking licenses for ${event.operation} at ${event.event_time}`,
@@ -208,8 +219,8 @@ async function insertBatch() {
 
     console.log(
       `Inserted: ${batchToInsert.length} rows ` +
-        `(${systemEvents.length} system, ${normalEvents.length} normal) ` +
-        `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
+      `(${systemEvents.length} system, ${normalEvents.length} normal) ` +
+      `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
     );
   } catch (error) {
     console.error("Error inserting batch:", error.message);
@@ -242,20 +253,36 @@ async function run() {
     await clickhouse.ping();
     console.log(" Connected to ClickHouse\n");
     console.log(CONFIG.clickhouse.username);
-    for (const topic of CONFIG.topics) {
-      await consumer.subscribe({ topic, fromBeginning: false });
-      console.log(` Subscribed to: ${topic}`);
-    }
+
+    await consumer.subscribe({
+      topic: /^flexlm\.logs\.(?!fallback$).+/,
+      fromBeginning: false,
+    });
 
     console.log("\n Consuming messages...");
     console.log(
-      `⚙️  Batch Config: ${CONFIG.batch.maxSize} messages or ${CONFIG.batch.maxWaitMs}ms\n`,
+      `  Batch Config: ${CONFIG.batch.maxSize} messages or ${CONFIG.batch.maxWaitMs}ms\n`,
     );
+    // Periodic refresh backup
+
+    setInterval(async () => {
+      try {
+        const assignments = consumer.assignment();
+        if (assignments && assignments.length > 0) {
+          await consumer.pause(assignments);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          await consumer.resume(assignments);
+          console.log("🔄 Periodic refresh");
+        }
+      } catch (err) {
+        console.error("Refresh error:", err);
+      }
+    }, 15000);
 
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         const row = transformMessage(message, topic, partition, message.offset);
-        await addToBatch(row);
+        if (row) await addToBatch(row);
       },
     });
   } catch (error) {
@@ -283,17 +310,5 @@ async function shutdown() {
   console.log("\n Shutdown complete");
   process.exit(0);
 }
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-setInterval(() => {
-  console.log(
-    `Metrics: Processed=${metrics.messagesProcessed}, ` +
-      `Batches=${metrics.batchesInserted}, ` +
-      `Errors=${metrics.errors}, ` +
-      `Batch Size=${batch.length}`,
-  );
-}, 30000);
 
 run().catch(console.error);
