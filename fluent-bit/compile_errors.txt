@@ -1,0 +1,2 @@
+ld: unknown file type in '/Users/sanjeevprasanna/projects/RealTimeLicenseMonitoringTool/fluent-bit/fluent-bit.conf'
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
