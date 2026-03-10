@@ -1,16 +1,6 @@
 require("dotenv").config();
 const { Kafka } = require("kafkajs");
 const { createClient } = require("@clickhouse/client");
-const {
-  getRunningTopics,
-  createTopic,
-  currLen,
-  liveKafkaTopicsList,
-} = require("./services/kafka.js");
-
-const fs = require("fs");
-const NOTIFY_FILE = "/tmp/flexlm-new-topics.json";
-let lastCheck = Date.now();
 
 const CONFIG = {
   kafka: {
@@ -43,6 +33,9 @@ const kafka = new Kafka({
   metadataMaxAge: 2000,
 });
 
+const admin = kafka.admin();
+let knownTopics = [];
+
 const consumer = kafka.consumer({
   groupId: CONFIG.kafka.groupId,
   sessionTimeout: 30000,
@@ -70,7 +63,6 @@ async function revokeAllLicenses(eventTime) {
     console.log(` Revoking all licenses due to system event at ${eventTime}`);
 
     const query = `
-
 INSERT INTO flexlm_logs 
 SELECT 
   '${eventTime}' AS event_time,
@@ -107,7 +99,6 @@ FROM (
   HAVING net_count > 0
 )
 ARRAY JOIN range(net_count)
-
     `;
 
     await clickhouse.command({ query });
@@ -123,10 +114,7 @@ function transformMessage(kafkaMessage, topic, partition, offset) {
 
     let eventTime;
     if (value["@timestamp"]) {
-      // Convert Unix timestamp to IST datetime
       const date = new Date(value["@timestamp"] * 1000);
-
-      // Add IST offset (5 hours 30 minutes)
       const istDate = new Date(date.getTime());
       eventTime = istDate.toISOString().slice(0, 19).replace("T", " ");
     } else if (value.timestamp) {
@@ -202,7 +190,6 @@ async function insertBatch() {
       });
 
       if (
-        //event.daemon === "lmgrd" &&
         event.operation === "REREAD" ||
         event.operation === "SHUTDOWN" ||
         event.operation === "SERVER_EXIT"
@@ -219,8 +206,8 @@ async function insertBatch() {
 
     console.log(
       `Inserted: ${batchToInsert.length} rows ` +
-      `(${systemEvents.length} system, ${normalEvents.length} normal) ` +
-      `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
+        `(${systemEvents.length} system, ${normalEvents.length} normal) ` +
+        `(Total: ${metrics.messagesProcessed}, Batches: ${metrics.batchesInserted})`,
     );
   } catch (error) {
     console.error("Error inserting batch:", error.message);
@@ -247,12 +234,17 @@ async function run() {
   try {
     console.log(" Connecting to Kafka...");
     await consumer.connect();
+    await admin.connect();
     console.log(" Connected to Kafka");
 
     console.log(" Connecting to ClickHouse...");
     await clickhouse.ping();
     console.log(" Connected to ClickHouse\n");
     console.log(CONFIG.clickhouse.username);
+
+    knownTopics = (await admin.listTopics()).filter((t) =>
+      /^flexlm\.logs\.(?!fallback$).+/.test(t),
+    );
 
     await consumer.subscribe({
       topic: /^flexlm\.logs\.(?!fallback$).+/,
@@ -263,19 +255,41 @@ async function run() {
     console.log(
       `  Batch Config: ${CONFIG.batch.maxSize} messages or ${CONFIG.batch.maxWaitMs}ms\n`,
     );
-    // Periodic refresh backup
 
     setInterval(async () => {
       try {
-        const assignments = consumer.assignment();
-        if (assignments && assignments.length > 0) {
-          await consumer.pause(assignments);
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          await consumer.resume(assignments);
-          console.log("🔄 Periodic refresh");
+        const currentTopics = await admin.listTopics();
+        const matchingTopics = currentTopics.filter((t) =>
+          /^flexlm\.logs\.(?!fallback$).+/.test(t),
+        );
+        const hasNewTopic = matchingTopics.some(
+          (t) => !knownTopics.includes(t),
+        );
+
+        if (hasNewTopic) {
+          console.log("New topic detected. Restarting consumer...");
+          knownTopics = matchingTopics;
+
+          await consumer.stop();
+          await consumer.subscribe({
+            topic: /^flexlm\.logs\.(?!fallback$).+/,
+            fromBeginning: false,
+          });
+
+          await consumer.run({
+            eachMessage: async ({ topic, partition, message }) => {
+              const row = transformMessage(
+                message,
+                topic,
+                partition,
+                message.offset,
+              );
+              if (row) await addToBatch(row);
+            },
+          });
         }
       } catch (err) {
-        console.error("Refresh error:", err);
+        console.error(err);
       }
     }, 15000);
 
@@ -300,6 +314,7 @@ async function shutdown() {
   }
 
   await consumer.disconnect();
+  await admin.disconnect();
   await clickhouse.close();
 
   console.log("\n Final Metrics:");
